@@ -1,0 +1,37 @@
+# Maven / Java
+target/
+*.class
+*.jar
+*.war
+hs_err_pid*
+
+# IDEs
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.classpath
+.project
+.settings/
+
+# Segredos e configuração local (NUNCA versionar)
+.env
+*.env
+!.env.example
+local.settings.json
+*.pem
+*.pfx
+*.key
+secrets/
+
+# Azure Functions (artefatos locais)
+.azure/
+.azurefunctions/
+
+# Resultados brutos de testes de carga (podem ser grandes; decidir na Etapa 7)
+# load-tests/results/raw/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
