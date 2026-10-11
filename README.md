@@ -1,7 +1,4 @@
 # library-cloud-benchmark
-Uma API de biblioteca para avaliar arquiteturas em nuvem.
-
-# library-cloud-benchmark
 
 API REST de biblioteca usada como parte prática de um TCC de Engenharia de Software:
 
