@@ -20,7 +20,7 @@ Legenda de **tipo de afirmação** (seção 16.5 do enunciado do projeto):
 
 | Arquivo | Conteúdo | Situação |
 |---|---|---|
-| [architecture.md](architecture.md) | Visão geral e responsabilidades | GERADO (Etapa 2) |
+| [architecture.md](architecture.md) | Visão geral e responsabilidades | TESTADO (Etapa 2) |
 | [architecture-decisions.md](architecture-decisions.md) | ADRs | Em andamento |
 | [implementation.md](implementation.md) | Camadas, casos de uso, arquivos | Etapa 2 |
 | [testing.md](testing.md) | Estratégia e resultados de testes | Etapa 2 |
