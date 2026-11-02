@@ -10,10 +10,12 @@
     <packaging>pom</packaging>
     <name>library-cloud-benchmark (POM pai)</name>
 
-    <!-- Módulos: novos módulos serão adicionados nas próximas etapas
-         (infrastructure, adapter-container, adapter-functions). -->
+    <!-- O módulo adapter-functions será adicionado na Etapa 5. -->
     <modules>
         <module>core</module>
+        <module>api-contract</module>
+        <module>infrastructure</module>
+        <module>adapter-container</module>
     </modules>
 
     <properties>
@@ -21,14 +23,23 @@
         <java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
 
+        <!-- Versões de teste fixadas (validadas na Etapa 2). -->
         <junit.version>5.13.1</junit.version>
         <assertj.version>3.27.3</assertj.version>
+
+        <!-- Spring Boot: usado como "catálogo de versões" (BOM) para TODOS os módulos,
+             inclusive os compartilhados com o Azure Functions. Assim HikariCP e o driver
+             PostgreSQL têm exatamente a mesma versão nas duas implantações (ADR-014). -->
+        <spring-boot.version>4.1.1</spring-boot.version>
+
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.3</maven-surefire-plugin.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- ORDEM IMPORTA: o JUnit fixado vem ANTES do BOM do Spring Boot, que traria
+                 outra versão. Quem é declarado primeiro prevalece. -->
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
@@ -40,6 +51,30 @@
                 <groupId>org.assertj</groupId>
                 <artifactId>assertj-core</artifactId>
                 <version>${assertj.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Módulos internos -->
+            <dependency>
+                <groupId>br.edu.tcc.librarycloud</groupId>
+                <artifactId>library-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>br.edu.tcc.librarycloud</groupId>
+                <artifactId>library-api-contract</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>br.edu.tcc.librarycloud</groupId>
+                <artifactId>library-infrastructure</artifactId>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -60,6 +95,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>${spring-boot.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>

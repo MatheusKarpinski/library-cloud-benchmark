@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>br.edu.tcc.librarycloud</groupId>
+        <artifactId>library-cloud-benchmark</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>library-adapter-container</artifactId>
+    <name>library-adapter-container (Spring Boot)</name>
+    <description>Adaptador HTTP para a implantação em container (Azure Container Apps).</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>br.edu.tcc.librarycloud</groupId>
+            <artifactId>library-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>br.edu.tcc.librarycloud</groupId>
+            <artifactId>library-api-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>br.edu.tcc.librarycloud</groupId>
+            <artifactId>library-infrastructure</artifactId>
+        </dependency>
+
+        <!-- Spring MVC + Tomcat + Jackson. Sem JPA, sem Actuator, sem Swagger: só o necessário (ADR-004, ADR-017). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>library-api</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

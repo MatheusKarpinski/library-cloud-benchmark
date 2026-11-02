@@ -18,10 +18,24 @@
 - **Arquivos criados:** `pom.xml`, `core/pom.xml`, `.gitignore`, 11 classes de produção e
   5 de teste em `core/`, README e documentos em `docs/`.
 - **Funcionalidades:** CRUD, pesquisa por título, paginação, validações centralizadas.
-- **Verificação feita pelo assistente:** compilação com Java 21 e execução dos 35 testes
-  com *stubs* (35/35). **Não** foi executado `mvn`.
-- **Verificação pendente (autor):** instalar ferramentas, rodar `mvn test` (ver checklist).
-- **Verificação do autor (12/10/2026):** `java -version` 21.0.9 (Oracle), `mvn -v` 3.9.11, `JAVA_HOME` coerente com o JDK usado pelo Maven, Git 2.51.2. `mvn test`: 35 testes, 0 falhas, BUILD SUCCESS. Isso confirma também que o `pom.xml`, o Surefire 3.5.3 e as versões de JUnit/AssertJ funcionam.
+- **Verificação do autor (11/10/2026):** `java -version` 21.0.9 (Oracle), `mvn -v` 3.9.11, `JAVA_HOME` coerente com o JDK do Maven, Git 2.51.2. `mvn test`: 35 testes, 0 falhas, BUILD SUCCESS (3,8 s). Confirma também o `pom.xml`, o Surefire 3.5.3 e JUnit/AssertJ.
 - **Problemas encontrados:** nenhum até aqui (usar `troubleshooting.md` se ocorrerem).
 - **Pendências / próximos passos:** Etapa 3 (infraestrutura JDBC + adaptador Spring Boot),
   decisão de região (ADR-011).
+
+
+## Pré-etapa 3 — Docker (11/10/2026) — VALIDADA
+
+- Docker 29.8.2, Compose v5.5.1; `docker run --rm hello-world` executou com sucesso (saída informada pelo autor).
+
+## Etapa 3 — Persistência e API em container (escrita em 11/10/2026; validada em 02/11/2026) — CONCLUÍDA E VALIDADA
+
+- **Objetivo:** PostgreSQL local, repositório JDBC, adaptador Spring Boot com os endpoints e saúde.
+- **Decisões:** ADR-014 (Spring Boot 4.1.1 e BOM), ADR-015 (módulo `api-contract`), ADR-016 (PostgreSQL 17 e pool), ADR-017 (OpenAPI estático), ADR-018 (contrato de erros e saúde).
+- **Arquivos criados:** módulos `api-contract`, `infrastructure`, `adapter-container`; `db/schema.sql`, `db/seed.sql`; `docker-compose.yml`; `.env.example`; `scripts/load-env.ps1`, `scripts/db-reset.ps1`; `docs/openapi.yaml`.
+- **Arquivos modificados:** `pom.xml` (módulos, BOM do Spring Boot, plugin), `README.md`, vários arquivos de `docs/`.
+- **Verificação do autor (02/11/2026):** `mvn test` na raiz com BUILD SUCCESS (4 módulos); PostgreSQL `healthy`; carga de 10000 livros; API iniciada; blocos A, B, C e D de testes manuais conforme `testing.md`. O Spring Boot 4.1.1 compilou e iniciou com o código gerado.
+- **Problemas encontrados e soluções:** campo extra `up` em `/health/ready` (corrigido, T-002); `Show-Error` sem corpo no PowerShell 5.1 (corrigido, T-003); política de execução (T-001); exibição do PowerShell (T-004). Ver `troubleshooting.md`.
+- **Código alterado após a primeira versão:** `ReadinessResponse.isUp()` → `up()`; ajustes correspondentes em `HealthController` e `ResponseMappingTest`. Testes automatizados após a correção: build com sucesso (a API foi reiniciada a partir do novo build).
+- **Decisões:** ADR-014 a ADR-018 seguem **propostas**, agora validadas funcionalmente; aguardam aprovação explícita do autor.
+- **Pendências / próximos passos:** (1) Etapa 4: testes de integração com PostgreSQL real (Testcontainers) e dos endpoints; (2) registrar versões efetivas de HikariCP, driver PostgreSQL, Tomcat e `SELECT version();` do PostgreSQL; (3) confirmar a versão do PowerShell; (4) região do Azure (ADR-011); (5) medir o tempo de resposta durante falha de banco, se relevante.

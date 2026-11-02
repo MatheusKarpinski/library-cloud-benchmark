@@ -1,0 +1,160 @@
+openapi: 3.0.3
+info:
+  title: library-cloud-benchmark API
+  version: 0.1.0
+  description: >
+    API de livros usada no benchmark Azure Container Apps vs Azure Functions.
+    Contrato escrito à mão (ADR-017); deve ser mantido igual nas duas implantações.
+servers:
+  - url: http://localhost:8080
+    description: Execução local
+paths:
+  /api/books:
+    get:
+      summary: Listar livros (paginado)
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+      responses:
+        '200': { description: Página de livros, content: { application/json: { schema: { $ref: '#/components/schemas/BookPage' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Cadastrar livro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookRequest' }
+      responses:
+        '201':
+          description: Livro criado
+          headers:
+            Location: { schema: { type: string }, description: Caminho do novo recurso }
+          content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/books/search:
+    get:
+      summary: Pesquisar livros por trecho do título
+      parameters:
+        - name: title
+          in: query
+          required: true
+          schema: { type: string, maxLength: 200 }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+      responses:
+        '200': { description: Página de livros, content: { application/json: { schema: { $ref: '#/components/schemas/BookPage' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/books/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      summary: Consultar livro por id
+      responses:
+        '200': { description: Livro, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Atualizar livro (substituição completa)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookRequest' }
+      responses:
+        '200': { description: Livro atualizado, content: { application/json: { schema: { $ref: '#/components/schemas/Book' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Excluir livro
+      responses:
+        '204': { description: Excluído }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /health:
+    get:
+      summary: Liveness (não consulta o banco)
+      responses:
+        '200':
+          description: Processo ativo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { status: { type: string, example: UP } }
+  /health/ready:
+    get:
+      summary: Readiness (consulta o banco)
+      responses:
+        '200': { description: Banco disponível, content: { application/json: { schema: { $ref: '#/components/schemas/Readiness' } } } }
+        '503': { description: Banco indisponível, content: { application/json: { schema: { $ref: '#/components/schemas/Readiness' } } } }
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  responses:
+    Error:
+      description: Erro
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    BookRequest:
+      type: object
+      required: [titulo, autor, anoPublicacao, categoria]
+      properties:
+        titulo: { type: string, maxLength: 200 }
+        autor: { type: string, maxLength: 150 }
+        isbn: { type: string, nullable: true, description: 'ISBN-10 ou ISBN-13, com ou sem hífens' }
+        anoPublicacao: { type: integer, minimum: 1000, description: 'Até o ano atual + 1' }
+        categoria: { type: string, maxLength: 80 }
+        disponivel: { type: boolean, nullable: true, description: 'Ausente = true' }
+    Book:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        titulo: { type: string }
+        autor: { type: string }
+        isbn: { type: string, nullable: true, description: 'Sem hífens' }
+        anoPublicacao: { type: integer }
+        categoria: { type: string }
+        disponivel: { type: boolean }
+    BookPage:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Book' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    Readiness:
+      type: object
+      properties:
+        status: { type: string, enum: [UP, DOWN] }
+        database: { type: string, enum: [UP, DOWN] }
+    Error:
+      type: object
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, MALFORMED_REQUEST, NOT_FOUND, CONFLICT, SERVICE_UNAVAILABLE, INTERNAL_ERROR] }
+        message: { type: string }
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }

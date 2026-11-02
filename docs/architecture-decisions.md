@@ -88,7 +88,7 @@ Acesso às fontes online: 11/10/2026.
 
 ## ADR-011 — Região do Azure — **PENDENTE**
 - **Critérios a verificar na documentação antes de decidir:** disponibilidade de Container Apps, Functions Flex Consumption e PostgreSQL gerenciado na mesma região; proximidade do cliente k6; preço; cotas da assinatura.
-- **Risco:** o local de execução do k6 (sua máquina vs. máquina virtual na mesma região) altera a latência de rede medida; a escolha deve ser documentada.
+- **Risco:** o local de execução do k6 (máquina local vs. máquina virtual na mesma região) altera a latência de rede medida; a escolha deve ser documentada.
 
 ## ADR-012 — Cenários de cold start (11/10/2026) — **PROPOSTA**
 - **Decisão:** dois cenários por ambiente, "aquecido" e "frio (escala a zero)", executados só se couberem no orçamento. Detalhes em `experimental-methodology.md`.
@@ -98,4 +98,53 @@ Acesso às fontes online: 11/10/2026.
 
 ## ADR-013 — Observabilidade escalonada (11/10/2026) — **ACEITA**
 - **Decisão:** k6 + Azure Monitor primeiro; Prometheus/Grafana só em etapa posterior, se justificado.
-- **Justificativa:** pedido do autor e do enunciado: não criar integração decorativa.
+- **Justificativa:** evitar integração decorativa: cada ferramenta de monitoramento só entra se houver benefício real para a comparação.
+
+
+---
+## ADR-014 — Spring Boot 4.1.x e uso do BOM em todo o projeto (11/10/2026) — **PROPOSTA** (implementada na Etapa 3; detalha o ADR-005)
+- **Contexto:** o ADR-005 escolheu Spring Boot; faltava escolher a versão. O OSS do Spring Boot 3.5 terminou em 30/06/2026 e o 4.0 perde OSS em dezembro de 2026 **[DOC]**; o 4.1 é a série mantida mais recente.
+- **Decisão:** Spring Boot **4.1.1** (versão mais recente encontrada na consulta), com Java 21. O BOM `spring-boot-dependencies` é importado no POM pai para **todos** os módulos, inclusive os que o Functions reutilizará; assim HikariCP e o driver PostgreSQL têm a mesma versão nas duas implantações. O JUnit continua fixado em 5.13.1 (validado na Etapa 2) porque é declarado antes do BOM.
+- **Justificativa:** versão mantida; um único catálogo de versões evita divergência entre adaptadores.
+- **Alternativas:** Spring Boot 3.5 (suporte OSS encerrado); 4.0 (suporte encerra em dez/2026); fixar versões de Hikari/driver manualmente (risco de números errados).
+- **Consequências:** (+) menos versões a manter; (−) Spring Boot 4 é recente (Spring Framework 7, Jackson 3, starters modulares): a documentação e os exemplos online misturam 3.x e 4.x. O starter correto é `spring-boot-starter-webmvc` **[DOC]**.
+- **Impacto na comparação:** mesma versão de pool e driver nos dois lados; o framework segue como ameaça à validade (ADR-005).
+- **Fontes:** https://github.com/spring-projects/spring-boot/wiki/Supported-Versions · https://spring.io/blog/2026/08/20/spring-boot-4-1-1-available-now/ · repositório Maven Central (starter `spring-boot-starter-webmvc`).
+
+## ADR-015 — Módulo compartilhado `api-contract` (11/10/2026) — **PROPOSTA**
+- **Decisão:** DTOs e a tradução exceção → HTTP ficam num módulo Java puro, usado pelos dois adaptadores.
+- **Justificativa:** evita que Spring e Functions respondam erros de forma diferente por acidente; reduz o que a Etapa 5 precisa reescrever.
+- **Alternativas:** duplicar DTOs e handlers em cada adaptador (risco de divergência).
+- **Consequências:** (+) respostas idênticas por construção; (−) um módulo a mais. A serialização JSON continua a cargo de cada adaptador (será revisada na Etapa 5).
+
+## ADR-016 — PostgreSQL 17 local e política do pool (11/10/2026) — **PROPOSTA**
+- **Decisão:** imagem `postgres:17` no Docker Compose; pool HikariCP com `DB_POOL_MAX=5` e `DB_POOL_MIN_IDLE=1` por padrão, configuráveis; o pool não conecta na criação.
+- **Justificativa:** o PostgreSQL 17 e o 18 são suportados no serviço gerenciado do Azure **[DOC]**; o 17 é a escolha conservadora. A tag `postgres:17` acompanha a versão menor mais recente: a versão efetiva deve ser registrada (`SELECT version();`). Mínimo ocioso baixo evita que muitas instâncias serverless segurem conexões desnecessárias.
+- **Alternativas:** PostgreSQL 18; pool fixo (min = max).
+- **Consequências:** o limite de conexões do servidor e o máximo de instâncias devem ser dimensionados juntos (ver metodologia).
+- **Fontes:** https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-supported-versions
+
+## ADR-017 — OpenAPI escrito à mão em vez de springdoc (11/10/2026) — **PROPOSTA**
+- **Decisão:** `docs/openapi.yaml` mantido manualmente; sem springdoc/Swagger UI no adaptador.
+- **Justificativa:** o springdoc só funciona no Spring, não no Functions; carregá-lo só de um lado alteraria o peso e a inicialização do container (variável de confusão). O springdoc 3.x é a linha para Spring Boot 4, mas não foi verificado com o 4.1 **[DOC parcial]**.
+- **Alternativas:** springdoc no container (documentação gerada, porém diferente entre ambientes).
+- **Consequências:** (−) a especificação pode divergir do código — será conferida nos testes da Etapa 4.
+
+## ADR-018 — Contrato de erros e endpoints de saúde (11/10/2026) — **PROPOSTA**
+- **Decisão:** corpo de erro `{code, message, violations[]}` sem data/pilha; `PersistenceFailureException` → 503, demais inesperadas → 500, sem expor detalhes técnicos. `/health` (liveness, sem banco) e `/health/ready` (readiness, com banco).
+- **Justificativa:** respostas determinísticas facilitam comparar os adaptadores; separar saúde sem/com banco permite medir o cold start do runtime separadamente do custo de abrir conexão (ver metodologia).
+- **Impacto na comparação:** padroniza respostas; erros de rotas inexistentes seguem o formato do framework (diferença documentada).
+
+---
+## Registro de validação (Etapa 3, 02/11/2026)
+
+| ADR | Situação | Evidência |
+|---|---|---|
+| ADR-014 | PROPOSTA — validada funcionalmente | Spring Boot 4.1.1 compilou e a API iniciou e respondeu (`testing.md`) |
+| ADR-015 | PROPOSTA — validada funcionalmente | Corpos de erro idênticos ao contrato em todos os casos testados |
+| ADR-016 | PROPOSTA — validada funcionalmente | PostgreSQL 17 em container, pool 5/1, recuperação após queda do banco |
+| ADR-017 | PROPOSTA — parcialmente validada | `openapi.yaml` ainda não conferido contra o código (Etapa 4) |
+| ADR-018 | PROPOSTA — validada funcionalmente | 400/404/409/503 e separação `/health` × `/health/ready` observados |
+
+Correção registrada no ADR-018: classes do `api-contract` não devem ter métodos `getX()`/`isX()` extras (campo `up`, ver `troubleshooting.md` T-002).
+As propostas continuam aguardando aprovação do autor.

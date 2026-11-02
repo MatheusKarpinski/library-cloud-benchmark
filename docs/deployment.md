@@ -1,6 +1,6 @@
 # Implantação e custos
 
-Status: execução local **PLANEJADA** (instruções no `README.md` para o núcleo); implantação no Azure **NÃO INICIADA**.
+Status: execução local do núcleo **TESTADA**; execução local da API e do banco **TESTADA** em 02/11/2026 (ver `README.md`, Etapa 3); implantação no Azure **NÃO INICIADA**.
 
 ## Regra de aprovação (definida pelo autor)
 
@@ -26,7 +26,7 @@ máximo sugerido e plano de remoção.
 
 ## Como verificar crédito e orçamento (a confirmar na Etapa 9)
 
-1. No portal do Azure, abrir **Cost Management + Billing** e conferir a assinatura ativa, o saldo de créditos (quando a assinatura for de estudante/teste) e o histórico de custos. (Os nomes exatos dos menus podem variar.)
+1. No portal do Azure, abrir **Cost Management + Billing** e conferir a assinatura ativa, o saldo de créditos (quando a assinatura for de estudante/teste) e o histórico de custos. (Os nomes exatos dos menus podem variar; confirmaremos juntos na tela.)
 2. Criar um **orçamento (Budget)** com alertas por e-mail em porcentagens do limite escolhido.
 3. Conferir se a assinatura tem **limite de gastos** que bloqueia recursos ao esgotar o crédito.
 4. Planejar a **remoção do grupo de recursos** logo após cada bateria de testes.

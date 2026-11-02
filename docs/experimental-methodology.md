@@ -61,3 +61,23 @@ Custos **medidos** vêm da ferramenta de custos do Azure para o período e os re
 ## 8. Ameaças à validade (preliminar)
 
 Framework diferente; planos com modelos de recurso e cobrança diferentes; local do cliente de carga; ruído de plataforma compartilhada; limite do banco; poucas repetições; metas de escala diferentes por padrão entre os serviços.
+
+
+## 9. Versões e ambiente (registrado até a Etapa 3)
+
+| Item | Valor | Fonte |
+|---|---|---|
+| JDK de desenvolvimento | Oracle Java 21.0.9 LTS | Saída do autor, 11/10/2026 |
+| Maven | 3.9.11 | Saída do autor, 11/10/2026 |
+| Docker / Compose | 29.8.2 / v5.5.1 | Saída do autor, 11/10/2026 |
+| Spring Boot | 4.1.1 (ADR-014) | Configuração do POM |
+| PostgreSQL local | imagem `postgres:17` — **registrar `SELECT version();`** | Docker Compose |
+| HikariCP, driver PostgreSQL, Tomcat | gerenciados pelo BOM — **registrar com `mvn dependency:tree`** | A preencher |
+| Pool de conexões | máx. 5, mín. ocioso 1 (padrões; ajustáveis por variável de ambiente) | `DatabaseConfig` |
+| Conjunto de dados | 10000 livros determinísticos (`db/seed.sql`), 1 em cada 10 sem ISBN | `db/seed.sql` |
+
+### Pendências de registro de ambiente (a preencher antes dos experimentos)
+
+- Versão do Windows PowerShell/PowerShell do autor (`$PSVersionTable.PSVersion`).
+- Saída de `SELECT version();` no PostgreSQL local e versões efetivas de HikariCP, driver PostgreSQL e Tomcat (`mvn dependency:tree`).
+- `DB_CONNECTION_TIMEOUT_MS` (padrão 5000 ms) define o tempo máximo até um erro de banco ser reportado; deve ser fixado e registrado para os dois ambientes **[DECISÃO a tomar]**.
