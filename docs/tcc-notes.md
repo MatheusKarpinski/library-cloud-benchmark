@@ -39,9 +39,17 @@ Revisar as fontes diretamente antes de citar; as páginas da Microsoft mudam com
 | C7 | O serviço gerenciado de PostgreSQL do Azure suporta, entre outras, as versões 17 e 18 | [DOC] | https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-supported-versions |
 | C8 | A linha 3.x do springdoc-openapi é a voltada ao Spring Boot 4 (compatibilidade explícita verificada até o 4.0.x) | [DOC secundária] | notas de versão no GitHub do projeto |
 
+## C3. Testcontainers e Docker (Etapa 4)
+
+| # | Afirmação | Tipo | Fonte |
+|---|---|---|---|
+| C9 | O Docker Engine 29 passou a exigir API mínima 1.44; clientes antigos do Testcontainers falham com "client version ... is too old" | [DOC secundária] | Notas de versão do Docker 29 (citadas em fóruns e relatos de terceiros); **conferir em https://docs.docker.com/engine/release-notes/29/** |
+| C10 | O Testcontainers 2.0 (e o 2.0.2 em especial) é a linha compatível com Docker 29; o Spring Boot 4.0 traz o Testcontainers 2.0.2 por padrão | [DOC secundária] | Relatos de terceiros e atas de projeto; **reconferir nas notas de versão do Testcontainers e do Spring Boot** |
+| C11 | No Testcontainers 2.x os módulos têm prefixo `testcontainers-` e as classes ficam em pacotes por módulo (`org.testcontainers.postgresql.PostgreSQLContainer`, não genérica); o suporte a JUnit 4 foi removido | [DOC secundária] | Notas da versão 2.0.0 do Testcontainers (GitHub) |
+
 ## D. Decisões de projeto (não são recomendações da literatura)
 
-Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID gerado na aplicação; serviço único; paginação padrão 20/máx. 100; módulo `api-contract`; PostgreSQL 17; pool 5/1; OpenAPI manual; 503 para falha de persistência. Ver ADRs.
+Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID gerado na aplicação; serviço único; paginação padrão 20/máx. 100; módulo `api-contract`; PostgreSQL 17; pool 5/1; OpenAPI manual; 503 para falha de persistência; testes de integração por etiqueta e perfil Maven. Ver ADRs.
 
 ## E. Hipóteses a testar (sem comprovação ainda)
 

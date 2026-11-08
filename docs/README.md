@@ -26,6 +26,6 @@ Legenda de **tipo de afirmação** (classificação adotada neste projeto):
 | [tcc-notes.md](tcc-notes.md) | Notas com fontes para a redação | Em andamento |
 | [troubleshooting.md](troubleshooting.md) | Problemas e soluções | 7 ocorrências registradas |
 | [api-reference.md](api-reference.md) | Endpoints | TESTADO manualmente (Etapa 3) |
-| [openapi.yaml](openapi.yaml) | Contrato OpenAPI 3.0 (escrito à mão) | ESCRITO (Etapa 3); a conferir contra o código na Etapa 4 |
+| [openapi.yaml](openapi.yaml) | Contrato OpenAPI 3.0 (escrito à mão) | ESCRITO (Etapa 3); consistência básica verificada por teste (Etapa 4) |
 | [observability.md](observability.md) | Monitoramento | PLANEJADO |
 | [experimental-results.md](experimental-results.md) | Resultados | SEM DADOS |

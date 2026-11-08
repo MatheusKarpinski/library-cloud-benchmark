@@ -39,3 +39,13 @@
 - **Código alterado após a primeira versão:** `ReadinessResponse.isUp()` → `up()`; ajustes correspondentes em `HealthController` e `ResponseMappingTest`. Testes automatizados após a correção: build com sucesso (a API foi reiniciada a partir do novo build).
 - **Decisões:** ADR-014 a ADR-018 seguem **propostas**, agora validadas funcionalmente; aguardam aprovação explícita do autor.
 - **Pendências / próximos passos:** (1) Etapa 4: testes de integração com PostgreSQL real (Testcontainers) e dos endpoints; (2) registrar versões efetivas de HikariCP, driver PostgreSQL, Tomcat e `SELECT version();` do PostgreSQL; (3) confirmar a versão do PowerShell; (4) região do Azure (ADR-011); (5) medir o tempo de resposta durante falha de banco, se relevante.
+
+## Etapa 4 — Testes de integração (11/2026) — ESCRITA, VALIDAÇÃO PENDENTE
+
+- **Objetivo:** automatizar a verificação do repositório JDBC contra PostgreSQL real e da API por HTTP; conferir o `openapi.yaml` contra a aplicação.
+- **Decisões:** ADR-019 (proposta). Testcontainers 2.x pelo BOM (compatível com Docker 29); testes de integração por `@Tag("integration")` e perfil Maven `integration`.
+- **Arquivos criados:** `infrastructure/src/test/.../PostgresTestContainer.java`, `JdbcBookRepositoryIntegrationTest.java`; `adapter-container/src/test/.../PostgresTestContainer.java`, `RunningApplication.java`, `BookApiIntegrationTest.java`, `BookApiDatabaseDownIntegrationTest.java`, `OpenApiDocumentTest.java`.
+- **Arquivos modificados:** `pom.xml` (propriedade `tests.excludedGroups`, configuração do Surefire, perfil `integration`), `infrastructure/pom.xml` e `adapter-container/pom.xml` (dependências de teste), `ApplicationConfig.java` (configuração pelo `Environment`), `README.md` e documentos de `docs/`.
+- **Funcionalidades:** 28 testes de integração e 3 testes unitários novos (contrato OpenAPI).
+- **Testes executados e resultados:** **pendente.** Registrar aqui e em `testing.md` o resultado de `mvn test` (57 testes) e de `mvn test -Pintegration` (85 testes).
+- **Pendências:** executar e registrar; registrar as versões efetivas do Testcontainers, HikariCP, driver PostgreSQL e Tomcat; confirmar a versão do PowerShell; collation do PostgreSQL no Azure; região do Azure (ADR-011); aprovação dos ADR-014 a ADR-019.

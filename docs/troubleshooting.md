@@ -43,3 +43,8 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 - **Causa:** perda na cópia do terminal; a conferência por nomes das variáveis confirmou as 10 variáveis.
 - **Solução:** conferir sempre com comandos que listem só os nomes (sem expor senhas).
 - **Etapa 3, 02/11/2026.**
+
+## Problemas conhecidos (preventivo, ainda sem ocorrência)
+
+- **`Could not find a valid Docker environment` ao rodar `mvn test -Pintegration`:** o Docker Desktop não está aberto ou o motor ainda não iniciou. Abrir o Docker Desktop, aguardar "Engine running" e repetir. Se aparecer `client version ... is too old`, a versão do Testcontainers não corresponde ao Docker instalado; conferir a versão gerenciada pelo BOM com `mvn dependency:tree`.
+- **Primeira execução lenta dos testes de integração:** o Docker baixa a imagem auxiliar do Testcontainers e as dependências; execuções seguintes são mais rápidas.

@@ -73,3 +73,7 @@ id válido (400) → livro existe (404) → dados válidos (400) → ISBN livre 
 ### Lição da validação (02/11/2026): métodos de acesso em registros de resposta
 
 Um método `isUp()` em `ReadinessResponse` fez o Jackson incluir um campo extra `"up": true` na resposta de `/health/ready`, fora do contrato. Corrigido renomeando para `up()`. **Regra:** classes do módulo `api-contract` não devem ter métodos com nome no padrão `getX()`/`isX()` além dos componentes do registro, pois serão serializados como propriedades.
+
+### Etapa 4 — alteração no código de produção
+
+`ApplicationConfig` passou a ler `DB_URL`, `DB_USER` etc. pelo `Environment` do Spring (`DatabaseConfig.from(name -> environment.getProperty(name))`) em vez de `DatabaseConfig.fromEnvironment()`. Em execução normal isso equivale a ler as variáveis de ambiente do sistema; nos testes de integração permite apontar a aplicação para o banco do container por argumentos de linha de comando, que têm prioridade sobre as variáveis do sistema. Validação, valores padrão e mensagens de erro continuam em `DatabaseConfig` (compartilhada com o futuro adaptador do Functions).

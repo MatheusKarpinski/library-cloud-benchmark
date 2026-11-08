@@ -9,6 +9,7 @@ import br.edu.tcc.librarycloud.infrastructure.persistence.JdbcBookRepository;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 
 /**
  * Montagem manual dos objetos: o núcleo e a infraestrutura não usam anotações do Spring,
@@ -18,9 +19,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ApplicationConfig {
 
+    /**
+     * Lê DB_URL, DB_USER etc. pelo {@link Environment} do Spring. Em produção isso equivale a ler
+     * as variáveis de ambiente do sistema; nos testes permite informar os valores por argumentos.
+     */
     @Bean(destroyMethod = "close")
-    public HikariDataSource dataSource() {
-        return DataSourceFactory.create(DatabaseConfig.fromEnvironment());
+    public HikariDataSource dataSource(Environment environment) {
+        return DataSourceFactory.create(DatabaseConfig.from(name -> environment.getProperty(name)));
     }
 
     @Bean

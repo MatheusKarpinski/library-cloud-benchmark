@@ -148,3 +148,18 @@ Acesso às fontes online: 11/10/2026.
 
 Correção registrada no ADR-018: classes do `api-contract` não devem ter métodos `getX()`/`isX()` extras (campo `up`, ver `troubleshooting.md` T-002).
 As propostas continuam aguardando aprovação do autor.
+
+---
+## ADR-019 — Estratégia dos testes de integração (11/2026) — **PROPOSTA** (escrita na Etapa 4; refina o ADR-006)
+- **Contexto:** os testes da Etapa 3 foram manuais; é preciso automatizar a verificação do repositório JDBC contra um banco real e da API por HTTP, sem tornar o `mvn test` dependente de Docker.
+- **Decisão:**
+  1. Testes de integração marcados com `@Tag("integration")`, excluídos por padrão e incluídos com `-Pintegration`.
+  2. PostgreSQL 17 em container via Testcontainers 2.x, com versão gerenciada pelo BOM do Spring Boot, um único container por execução e o `db/schema.sql` real.
+  3. Testes da API com a aplicação real em porta livre e cliente HTTP do JDK; sem MockMvc nem módulos de teste do Spring.
+  4. Teste unitário de consistência entre `docs/openapi.yaml` e a aplicação.
+  5. `ApplicationConfig` lê a configuração pelo `Environment` do Spring, para permitir apontar a aplicação para o banco de teste.
+- **Justificativa:** HTTP real aproxima os testes do que o k6 fará e evita depender de APIs de teste do Spring Boot 4 (pacotes reorganizados); a etiqueta mantém o ciclo rápido de desenvolvimento; o Testcontainers 2.x é a linha compatível com Docker 29 (que exige API mínima 1.44) **[DOC secundária]**.
+- **Alternativas:** MockMvc/`@SpringBootTest` (mais idiomático, mais dependências e risco de versões); maven-failsafe-plugin (separaria os testes por fase, mas interage mal com o JAR reempacotado do Spring Boot); H2 no lugar do PostgreSQL (comportamento diferente do banco real).
+- **Consequências:** (+) verificação automática do contrato real do repositório e da API; (−) os testes de integração levam mais tempo e exigem Docker; os testes de API comparam o JSON por trechos de texto.
+- **Impacto na comparação:** os mesmos cenários de API poderão ser reaproveitados para validar a equivalência funcional do adaptador Functions (Etapa 5).
+- **Fontes:** ver `tcc-notes.md` (itens C9 a C11).

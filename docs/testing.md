@@ -5,8 +5,8 @@
 | Nível | Ferramenta | Onde | Status |
 |---|---|---|---|
 | Unitário (domínio e casos de uso) | JUnit 5 + AssertJ, repositório em memória **apenas de teste** | `core/src/test` | TESTADO |
-| Integração de persistência (PostgreSQL real) | Testcontainers (exige Docker Desktop) — **proposta** | `infrastructure` | PLANEJADO (Etapa 4) |
-| Integração dos endpoints | A definir com o adaptador | `adapter-*` | PLANEJADO (Etapas 4–5) |
+| Integração de persistência (PostgreSQL real) | Testcontainers 2.x (exige Docker Desktop) | `infrastructure` | ESCRITO (Etapa 4) |
+| Integração dos endpoints | Aplicação real + cliente HTTP do JDK + PostgreSQL em container | `adapter-container` | ESCRITO (Etapa 4); `adapter-functions` PLANEJADO (Etapa 5) |
 | Carga | k6 (ferramenta externa) | `load-tests/` | PLANEJADO (Etapa 7) |
 
 ## Etapa 2 — 35 testes no `core`
@@ -64,3 +64,34 @@ Tipo de evidência: **observação funcional** (não é medição de desempenho)
 | D — banco fora do ar | `docker compose stop/start postgres` | `/health` 200; `/health/ready` 503 `DOWN`; dados 503 `SERVICE_UNAVAILABLE`; log com `ERROR` e aviso de banco indisponível; recuperação após religar, com dados preservados |
 
 **Não medido:** tempo de resposta durante a falha do banco (esperado ≈ `DB_CONNECTION_TIMEOUT_MS`), tempo de recuperação do pool e qualquer métrica de desempenho. **Ainda sem testes automatizados contra PostgreSQL** (Etapa 4).
+
+## Etapa 4 — testes de integração (ESCRITO; execução pendente)
+
+### Organização
+
+- **Dois níveis** (ADR-019): `mvn test` roda só os unitários (57 testes, sem Docker); `mvn test -Pintegration` roda também os testes marcados com `@Tag("integration")` (mais 28, total 85), que exigem Docker.
+- Os testes de integração usam um **PostgreSQL 17 em container** (mesma imagem do `docker-compose.yml`) com o **mesmo `db/schema.sql`** da aplicação. A carga `db/seed.sql` não é usada nos testes (usa comandos do `psql`); ela foi validada manualmente na Etapa 3.
+- Os testes da API sobem a **aplicação real** (Spring Boot + Tomcat) numa porta livre e falam com ela por **HTTP** (cliente do JDK), como o k6 fará. Não usam MockMvc.
+
+### Casos
+
+| Classe | Testes | Cobertura |
+|---|---|---|
+| `JdbcBookRepositoryIntegrationTest` | 14 | gravar e recuperar todos os campos; atualizar sem duplicar; id inexistente; busca por ISBN; ISBN repetido (inserção e atualização); vários livros sem ISBN; ordenação por `lower(titulo)` e id com paginação e total; busca sem diferenciar maiúsculas; curingas `%`, `_` e `\` como texto; exclusão verdadeira/falsa; registro que viola as regras atuais; banco inacessível; health check |
+| `BookApiIntegrationTest` | 11 | `/health`; `/health/ready`; ciclo completo (201 + `Location`, GET, PUT, 204, 404); ISBN repetido (409) na criação e na atualização; violações agregadas (400); JSON malformado/tipo incorreto; id inválido (400) e inexistente (404, inclusive PUT antes de validar o corpo); paginação inválida; rota inexistente (404); listagem ordenada e paginada com totais; pesquisa e validação do termo |
+| `BookApiDatabaseDownIntegrationTest` | 3 | com banco inexistente: `/health` 200; `/health/ready` 503 `DOWN`; dados 503 `SERVICE_UNAVAILABLE` sem `jdbc`, host, usuário, senha ou nome de exceção no corpo |
+| `OpenApiDocumentTest` (unitário) | 3 | `openapi.yaml` contém as rotas, os métodos e todos os códigos de erro produzidos por `ErrorMapper` |
+
+### Resultados observados (Etapa 4)
+
+| Execução | Onde | Resultado |
+|---|---|---|
+| `mvn test` (57 unitários) | Máquina do autor | **PENDENTE** |
+| `mvn test -Pintegration` (85 testes) | Máquina do autor, Docker Desktop aberto | **PENDENTE** |
+
+### Limitações
+
+- A ordenação `lower(titulo)` depende da **collation** do banco. O repositório em memória dos testes unitários usa a ordem de pontos de código do Java; as duas coincidem para os dados dos testes (letras ASCII), mas não são equivalentes em geral. A collation do PostgreSQL no Azure deve ser conferida antes dos experimentos.
+- Os testes de API verificam o JSON por trechos de texto (o formato compacto do Spring), não por esquema.
+- O arquivo `openapi.yaml` é verificado só quanto a rotas, métodos e códigos de erro; os esquemas dos objetos não são validados automaticamente.
+- O ciclo de vida e a falha de banco são cobertos; **desempenho e concorrência** não são objeto desta etapa.

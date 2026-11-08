@@ -81,3 +81,4 @@ Framework diferente; planos com modelos de recurso e cobrança diferentes; local
 - Versão do Windows PowerShell/PowerShell do autor (`$PSVersionTable.PSVersion`).
 - Saída de `SELECT version();` no PostgreSQL local e versões efetivas de HikariCP, driver PostgreSQL e Tomcat (`mvn dependency:tree`).
 - `DB_CONNECTION_TIMEOUT_MS` (padrão 5000 ms) define o tempo máximo até um erro de banco ser reportado; deve ser fixado e registrado para os dois ambientes **[DECISÃO a tomar]**.
+- A ordenação das listagens usa `lower(titulo)` na **collation** do banco; conferir e igualar a collation do PostgreSQL local e a do serviço no Azure antes dos experimentos **[a verificar]**.

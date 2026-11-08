@@ -15,7 +15,8 @@ e em **Azure Functions** (Flex Consumption), e submetida aos mesmos testes de ca
 | 1 | Planejamento | Concluída |
 | 2 | Ambiente + núcleo (`core`) | **Testada** (35 testes) |
 | 3 | PostgreSQL local, JDBC, API Spring Boot | **Testada** (validação manual em 02/11/2026) |
-| 4–11 | Testes de integração, Functions, Docker, k6, monitoramento, Azure, experimentos, documentação final | Não iniciadas |
+| 4 | Testes de integração (PostgreSQL real e API por HTTP) | **Escrita — validar (seção "Etapa 4")** |
+| 5–11 | Functions, Docker, k6, monitoramento, Azure, experimentos, documentação final | Não iniciadas |
 
 Documentação completa e atualizada a cada etapa em [`docs/`](docs/README.md).
 
@@ -107,7 +108,7 @@ library-adapter-container ... SUCCESS
 BUILD SUCCESS
 ```
 
-Os testes por módulo somam **54** (core 35, api-contract 11, infrastructure 8). Cada módulo imprime sua linha `Tests run: N`.
+Os testes unitários somam **57** (core 35, api-contract 11, infrastructure 8, adapter-container 3). Cada módulo imprime sua linha `Tests run: N`. Os testes de integração (Etapa 4) ficam de fora deste comando.
 
 Linhas `INFO: Livro criado: id=...` no meio da saída são normais (logs do serviço durante os testes).
 
@@ -254,6 +255,41 @@ Para apagar banco **e** dados: `docker compose down -v`.
 | Erros ao baixar dependências | Rede/proxy | Repetir; enviar a mensagem completa |
 
 Qualquer erro novo deve ser registrado em `docs/troubleshooting.md`.
+
+## Etapa 4 — Testes automatizados
+
+Há dois níveis de teste:
+
+```powershell
+mvn test                    # unitários: rápido, sem Docker (57 testes)
+mvn test -Pintegration      # unitários + integração: exige o Docker Desktop aberto (85 testes)
+```
+
+Os testes de integração (marcados com `@Tag("integration")`) sobem um **PostgreSQL 17 em container**
+(Testcontainers, com o `db/schema.sql` real) e a **API real por HTTP**:
+
+| Classe | Módulo | Testes | O que cobre |
+|---|---|---|---|
+| `JdbcBookRepositoryIntegrationTest` | infrastructure | 14 | Contrato do repositório no banco real: gravação, ISBN único, ordenação, paginação, busca, curingas, exclusão, registro inconsistente, banco inacessível |
+| `BookApiIntegrationTest` | adapter-container | 11 | Todos os endpoints por HTTP: ciclo de vida, 400, 404, 409, paginação, pesquisa, saúde |
+| `BookApiDatabaseDownIntegrationTest` | adapter-container | 3 | Aplicação com banco inexistente: `/health` 200, `/health/ready` 503, dados 503 sem detalhes técnicos |
+| `OpenApiDocumentTest` (unitário) | adapter-container | 3 | `docs/openapi.yaml` cobre as rotas, métodos e códigos de erro implementados |
+
+Resultado esperado de `mvn test -Pintegration` (a primeira execução baixa imagens e dependências e pode levar vários minutos):
+
+```
+core ................ Tests run: 35
+api-contract ........ Tests run: 11
+infrastructure ...... Tests run: 22
+adapter-container ... Tests run: 17
+BUILD SUCCESS   (total: 85 testes, 0 falhas)
+```
+
+Observações:
+
+- O Docker Desktop precisa estar aberto. Sem ele, os testes de integração falham com a mensagem `Could not find a valid Docker environment`.
+- Não é necessário parar o PostgreSQL do `docker compose` nem a API: os testes usam um banco próprio em porta aleatória e sobem a aplicação numa porta livre.
+- Um módulo isolado: `mvn -pl infrastructure -am test -Pintegration`.
 
 ## Segurança
 
