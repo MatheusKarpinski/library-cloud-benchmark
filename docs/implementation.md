@@ -120,3 +120,26 @@ Pacote: `br.edu.tcc.librarycloud.functions`.
 - O pool de conexões não é fechado explicitamente no Functions.
 - O `JsonMapper` do Functions é montado à parte do mapper do Spring Boot; diferenças de configuração só aparecem comparando respostas (`api-smoke.ps1`).
 - A conversão de `page` e `size` usa `Integer.parseInt`; o conversor do Spring é próprio e pode aceitar formatos incomuns de forma diferente.
+
+
+## Etapa 6 — imagem Docker da API em container — status: ESCRITO (execução pendente)
+
+| Arquivo | Papel |
+|---|---|
+| `Dockerfile` | Estágio `build` (`maven:3.9-eclipse-temurin-21`): `mvn -pl adapter-container -am package -Dmaven.test.skip=true`, com cache do Maven (BuildKit). Estágio final (`eclipse-temurin:21-jre-noble`): cria o usuário `app` (uid 10001), copia `library-api.jar`, expõe a porta 8080 e inicia com `java -jar` |
+| `.dockerignore` | Exclui do contexto: `target/`, `.git/`, `.github/`, `.vscode/`, `.env`, `local.settings.json`, `smoke-*.txt`, `docs/`, `scripts/`, arquivos `.md` e os arquivos do próprio Docker |
+| `scripts/run-image.ps1` | Lê o `.env`, descobre a rede do contêiner `library-postgres`, reescreve o `DB_URL` para o host `postgres` (mesmo nome de banco), repassa `DB_USER`, `DB_PASSWORD` e `DB_POOL_*` por variável de ambiente do processo (a senha não vai para a linha de comando), publica `127.0.0.1:<Port>` (padrão 8081) e aceita `-Memory` e `-Cpus` |
+
+### Comportamentos para conhecer
+
+- A imagem **não** contém segredos nem o `.env`; sem as variáveis `DB_*`, a API falha ao iniciar (mesma validação do JAR).
+- O módulo `adapter-functions` precisa estar presente no contexto (o POM pai o lista como módulo), mas **não** é compilado na imagem.
+- `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75.0` faz a JVM imprimir `Picked up JAVA_TOOL_OPTIONS` ao iniciar (comportamento esperado do JDK).
+- A tag da base (`21-jre-noble`) é flutuante: registrar o *digest* e a versão do Java após cada build.
+- O processo Java é o PID 1 do contêiner; o encerramento gracioso depende de a JVM receber o `SIGTERM` do `docker stop` (a confirmar).
+
+### Limitações conhecidas (Etapa 6)
+
+- Escrito sem execução: ver as verificações em `testing.md`.
+- Sem `HEALTHCHECK` na imagem; as sondas serão configuradas no Container Apps (Etapa 9).
+- Sem camadas de JAR, `jlink` ou imagem mínima: otimizações só depois de medir.

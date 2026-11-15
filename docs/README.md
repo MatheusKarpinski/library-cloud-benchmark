@@ -16,10 +16,10 @@ Legenda de **tipo de afirmação** (classificação adotada neste projeto):
 
 | Arquivo | Conteúdo | Situação |
 |---|---|---|
-| [architecture.md](architecture.md) | Visão geral e responsabilidades | Atualizado (Etapa 5 validada localmente) |
-| [architecture-decisions.md](architecture-decisions.md) | ADRs (até o ADR-021) | Em andamento |
-| [implementation.md](implementation.md) | Camadas, casos de uso, arquivos | Atualizado (Etapa 5 validada localmente) |
-| [testing.md](testing.md) | Estratégia e resultados de testes | Atualizado (Etapas 4 e 5 validadas) |
+| [architecture.md](architecture.md) | Visão geral e responsabilidades | Atualizado (Etapa 6 escrita) |
+| [architecture-decisions.md](architecture-decisions.md) | ADRs (até o ADR-022) | Em andamento |
+| [implementation.md](implementation.md) | Camadas, casos de uso, arquivos | Atualizado (Etapa 6 escrita) |
+| [testing.md](testing.md) | Estratégia e resultados de testes | Atualizado (Etapas 4 e 5 validadas; Etapa 6 escrita) |
 | [experimental-methodology.md](experimental-methodology.md) | Metodologia (plano) | PLANEJADO |
 | [deployment.md](deployment.md) | Execução local, plano de custos, implantação | Parcial |
 | [dev-log.md](dev-log.md) | Diário de desenvolvimento | Em andamento |

@@ -1,0 +1,23 @@
+# Contexto de build enxuto e SEM segredos (Etapa 6 / ADR-022).
+
+# Artefatos de build e controle de versão
+**/target/
+.git/
+.github/
+.vscode/
+
+# Segredos e configuração local (NUNCA entram na imagem)
+.env
+*.env
+**/local.settings.json
+
+# Registros de execuções locais
+smoke-*.txt
+
+# Não usados no build da imagem
+docs/
+scripts/
+**/*.md
+docker-compose.yml
+Dockerfile
+.dockerignore

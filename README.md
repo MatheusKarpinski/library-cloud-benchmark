@@ -16,8 +16,9 @@ e em **Azure Functions** (Flex Consumption), e submetida aos mesmos testes de ca
 | 2 | Ambiente + núcleo (`core`) | **Testada** (35 testes) |
 | 3 | PostgreSQL local, JDBC, API Spring Boot | **Testada** (validação manual em 02/11/2026) |
 | 4 | Testes de integração (PostgreSQL real e API por HTTP) | **Testada** (57 unitários e 85 com integração passaram; informado pelo autor em 12/11/2026) |
-| 5 | API no Azure Functions (execução local) e comparação com o container | **Testada** localmente em 14/11/2026 (smoke idêntico, salvo o `Content-Type` do 204; ver seção "Etapa 5") |
-| 6–11 | Imagem Docker, k6, monitoramento, Azure, experimentos, documentação final | Não iniciadas |
+| 5 | API no Azure Functions (execução local) e comparação com o container | **Testada** localmente em 14/11/2026 (104 testes com integração; smoke idêntico nos 42 cenários; ver seção "Etapa 5") |
+| 6 | Imagem Docker da API em container (`Dockerfile`, `.dockerignore`) e teste local da imagem | **Escrita — validar (seção "Etapa 6")** |
+| 7–11 | k6, monitoramento, Azure, experimentos, documentação final | Não iniciadas |
 
 Documentação completa e atualizada a cada etapa em [`docs/`](docs/README.md).
 
@@ -32,7 +33,9 @@ library-cloud-benchmark/
 ├── adapter-container/      API Spring Boot (Azure Container Apps)
 ├── adapter-functions/      API Azure Functions (Flex Consumption) — Etapa 5
 ├── db/                     schema.sql e seed.sql (carga determinística)
-├── scripts/                load-env.ps1, db-reset.ps1, new-local-settings.ps1, api-smoke.ps1
+├── scripts/                load-env.ps1, db-reset.ps1, new-local-settings.ps1, api-smoke.ps1, run-image.ps1
+├── Dockerfile              Imagem da API em container — Etapa 6
+├── .dockerignore           Contexto de build sem segredos — Etapa 6
 ├── docker-compose.yml      PostgreSQL local
 ├── .env.example            Modelo de variáveis (copiar para .env)
 └── docs/                   Arquitetura, ADRs, metodologia, diário, openapi.yaml, notas do TCC
@@ -298,7 +301,7 @@ Observações:
 
 ## Etapa 5 — API no Azure Functions (execução local)
 
-O módulo `adapter-functions` expõe as **mesmas rotas e o mesmo contrato** do adaptador de container e chama o mesmo `BookService`, o mesmo `api-contract` e a mesma `infrastructure` (ADR-020 e ADR-021). Status: **TESTADO localmente** em 14/11/2026 (resultados informados pelo autor em `docs/testing.md`). Diferença conhecida entre os adaptadores: o `Content-Type` de respostas sem corpo (204 do DELETE) — ver `docs/troubleshooting.md`, T-010.
+O módulo `adapter-functions` expõe as **mesmas rotas e o mesmo contrato** do adaptador de container e chama o mesmo `BookService`, o mesmo `api-contract` e a mesma `infrastructure` (ADR-020 e ADR-021). Status: **TESTADO localmente** em 14/11/2026 (resultados informados pelo autor em `docs/testing.md`). Diferença conhecida entre os adaptadores: o `Content-Type` de respostas sem corpo (204 do DELETE), que o `api-smoke.ps1` registra como `(sem corpo)` — ver `docs/troubleshooting.md`, T-010.
 
 | Classe | Papel |
 |---|---|
@@ -405,6 +408,113 @@ Ver também `docs/troubleshooting.md` (seção "Problemas conhecidos").
 | `func` não é reconhecido | Core Tools fora do `PATH` ou terminal antigo | Feche e reabra o terminal; `func --version` |
 | `func start` mostra 0 funções ou erro do worker Java | Versão do Java/`JAVA_HOME` | Envie a saída completa; confira `java -version` e `echo $env:JAVA_HOME` |
 | Porta 7071 em uso | Outra instância do `func start` | Encerre-a com `Ctrl+C` |
+
+## Etapa 6 — Imagem Docker da API em container
+
+Status: **ESCRITO** — ainda não executado; use o checklist ao final. Decisão: ADR-022 (`docs/architecture-decisions.md`).
+
+| Arquivo | Papel |
+|---|---|
+| `Dockerfile` | Multi-estágio: `maven:3.9-eclipse-temurin-21` compila só os módulos da API em container; `eclipse-temurin:21-jre-noble` (JRE 21, Ubuntu 24.04) executa; usuário sem privilégios; porta 8080; `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75.0` como padrão |
+| `.dockerignore` | Deixa de fora `.env`, `local.settings.json`, `target/`, `.git`, `docs/` e `scripts/` do contexto de build |
+| `scripts/run-image.ps1` | Executa a imagem na rede do `docker-compose.yml`, ligada ao banco local (host `postgres`), publicando a porta em `127.0.0.1:8081` |
+
+A imagem não contém segredos: a configuração (`DB_URL`, `DB_USER`, `DB_PASSWORD`, `DB_POOL_*`, `SERVER_PORT`) vem só de variáveis de ambiente.
+
+### 1. Construir a imagem (raiz do projeto)
+
+```powershell
+docker build -t library-api:local .
+```
+
+Esperado: termina com `naming to docker.io/library/library-api:local`. A primeira vez baixa as imagens base e as dependências do Maven (alguns minutos); as seguintes usam o cache.
+
+### 2. Inspecionar a imagem (bloco inteiro)
+
+```powershell
+docker images library-api:local
+docker run --rm --entrypoint java library-api:local -version
+docker run --rm --entrypoint id library-api:local
+docker image inspect eclipse-temurin:21-jre-noble --format "{{index .RepoDigests 0}}"
+```
+
+Esperado: a imagem listada com o tamanho; Java `21.x` Temurin (a linha `Picked up JAVA_TOOL_OPTIONS` também aparece); `uid=10001(app) gid=10001(app)`; o *digest* da imagem base. **Anote** o tamanho, a versão do Java e o *digest* (a tag `21-jre-noble` muda com o tempo).
+
+### 3. Executar a imagem (segundo terminal; deixe aberto)
+
+Pare antes o JAR (`Ctrl+C`), se ele ainda estiver rodando na 8080. O banco do `docker-compose.yml` precisa estar de pé (`docker compose ps`).
+
+```powershell
+.\scripts\run-image.ps1
+```
+
+Esperado: `Picked up JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0` e os logs do Spring terminando com `Started LibraryApplication` e `Tomcat started on port 8080`.
+
+### 4. Conferir à mão (terminal principal)
+
+```powershell
+Invoke-RestMethod http://localhost:8081/health
+Invoke-RestMethod http://localhost:8081/health/ready
+Invoke-RestMethod "http://localhost:8081/api/books?size=3"
+```
+
+Esperado (banco com a carga de 10000 livros): os mesmos valores da Etapa 3.
+
+### 5. Comparar com o JAR (bloco inteiro)
+
+Compara o registro da imagem com o `smoke-container.txt` já existente (gerado com o JAR na Etapa 5).
+
+```powershell
+.\scripts\db-reset.ps1 -Rows 10000
+.\scripts\api-smoke.ps1 -BaseUrl http://localhost:8081 -OutFile smoke-image.txt
+Compare-Object (Get-Content -Encoding UTF8 smoke-container.txt) (Get-Content -Encoding UTF8 smoke-image.txt)
+```
+
+Sem saída do `Compare-Object` = registros idênticos.
+
+### 6. Encerramento gracioso (terminal principal; observe o segundo terminal)
+
+```powershell
+docker stop library-api-local
+```
+
+Esperado: o contêiner encerra em poucos segundos e o log mostra o encerramento do Spring (*graceful shutdown*). Anote as últimas linhas do log.
+
+### 7. Opcional — limites de recursos (segundo terminal; depois, terminal principal)
+
+```powershell
+.\scripts\run-image.ps1 -Memory 512m -Cpus 1
+```
+
+```powershell
+docker exec library-api-local java -XX:+PrintFlagsFinal -version | Select-String "MaxHeapSize|MaxRAMPercentage"
+```
+
+Esperado: `MaxRAMPercentage` 75 e `MaxHeapSize` por volta de 402653184 (75% de 512 MiB). Encerre depois com `docker stop library-api-local`.
+
+### Checklist da Etapa 6
+
+- [ ] `docker build` termina sem erro
+- [ ] Tamanho da imagem, versão do Java e *digest* da imagem base anotados
+- [ ] A imagem executa como `app` (uid 10001), não como root
+- [ ] `Started LibraryApplication` e `Tomcat started on port 8080` nos logs
+- [ ] `/health`, `/health/ready` e a listagem respondem como na Etapa 3
+- [ ] `Compare-Object` entre `smoke-container.txt` e `smoke-image.txt` sem saída
+- [ ] `docker stop` encerra a imagem em poucos segundos
+- [ ] (opcional) `MaxHeapSize` coerente com o limite de memória
+
+### Problemas comuns
+
+Ver também `docs/troubleshooting.md` (seção "Problemas conhecidos").
+
+| Sintoma | Causa provável | O que fazer |
+|---|---|---|
+| `docker build` falha ao baixar dependências | Sem rede ou instabilidade ao baixar do Maven Central | Repita o comando (o cache preserva o que já foi baixado) |
+| `run-image.ps1`: "Container 'library-postgres' nao esta em execucao" | Banco parado | `docker compose up -d` e espere o `healthy` |
+| `run-image.ps1`: "Imagem ... nao encontrada" | A imagem ainda não foi construída | Passo 1 |
+| Erro `container name "/library-api-local" is already in use` | Execução anterior ainda existe | `docker rm -f library-api-local` |
+| `port is already allocated` (8081) | Outro programa usa a porta | `.\scripts\run-image.ps1 -Port 8082` (e use a nova porta nos comandos) |
+| A API sobe, mas `/health/ready` responde 503 | Rede ou credenciais do banco | Confira `DB_USER` e `DB_PASSWORD` no `.env` e os logs do contêiner |
 
 ## Segurança
 

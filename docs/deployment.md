@@ -1,6 +1,6 @@
 # Implantação e custos
 
-Status: execução local do núcleo **TESTADA**; execução local da API e do banco **TESTADA** em 02/11/2026 (ver `README.md`, Etapa 3); execução local do adaptador Functions **TESTADA** em 14/11/2026 (ver `README.md`, Etapa 5); implantação no Azure **NÃO INICIADA**.
+Status: execução local do núcleo **TESTADA**; execução local da API e do banco **TESTADA** em 02/11/2026 (ver `README.md`, Etapa 3); execução local do adaptador Functions **TESTADA** em 14/11/2026 (ver `README.md`, Etapa 5); imagem Docker da API **ESCRITA** (Etapa 6; validação pendente); implantação no Azure **NÃO INICIADA**.
 
 ## Regra de aprovação (definida pelo autor)
 
@@ -15,7 +15,7 @@ máximo sugerido e plano de remoção.
 | Grupo de recursos | Agrupar tudo e facilitar a exclusão ao final | Sem custo próprio |
 | PostgreSQL gerenciado | Banco compartilhado | Tende a ser o maior custo **fixo** (cobrança enquanto existir); verificar opções de dimensionamento e de pausa |
 | Container Apps (ambiente + aplicativo) | Versão em container | Depende de réplicas, CPU/memória e tempo ativo; réplicas mínimas > 0 geram custo contínuo |
-| Registro de imagens (ou alternativa gratuita) | Guardar a imagem Docker | A decidir (alternativas a avaliar) |
+| Registro de imagens (ou alternativa gratuita) | Guardar a imagem Docker (a imagem local `library-api:local` foi escrita na Etapa 6, ADR-022) | A decidir na Etapa 9 (alternativas a avaliar) |
 | Function App (Flex Consumption) + conta de armazenamento associada | Versão serverless | Tempo de execução; instâncias sempre prontas cobram linha de base [DOC] |
 | Log Analytics / Application Insights | Observabilidade | Volume de dados ingeridos; limitar retenção e coleta |
 | Tráfego de saída | Respostas ao cliente | Verificar na calculadora |

@@ -7,8 +7,9 @@
 | Unitário (domínio e casos de uso) | JUnit 5 + AssertJ, repositório em memória **apenas de teste** | `core/src/test` | TESTADO |
 | Integração de persistência (PostgreSQL real) | Testcontainers 2.x (exige Docker Desktop) | `infrastructure` | TESTADO (Etapa 4, informado pelo autor em 12/11/2026) |
 | Integração dos endpoints | Aplicação real + cliente HTTP do JDK + PostgreSQL em container | `adapter-container` | TESTADO (Etapa 4, informado pelo autor em 12/11/2026) |
-| Unitário do adaptador Functions (lógica HTTP e JSON) | JUnit 5 + AssertJ, repositório em memória **apenas de teste** | `adapter-functions/src/test` | TESTADO (Etapa 5, informado pelo autor em 14/11/2026; contagem não registrada) |
+| Unitário do adaptador Functions (lógica HTTP e JSON) | JUnit 5 + AssertJ, repositório em memória **apenas de teste** | `adapter-functions/src/test` | TESTADO (Etapa 5, 14/11/2026): 19 testes, 0 falhas |
 | Equivalência entre adaptadores (container × Functions) | `scripts/api-smoke.ps1` + `Compare-Object` dos registros | raiz | TESTADO (Etapa 5, 14/11/2026): respostas iguais nos cenários, salvo o `Content-Type` do 204 (T-010) |
+| Imagem Docker da API (execução, equivalência com o JAR, encerramento) | `docker build`, `scripts/run-image.ps1`, `scripts/api-smoke.ps1` + `Compare-Object` | raiz | ESCRITO (Etapa 6); execução pendente |
 | Carga | k6 (ferramenta externa) | `load-tests/` | PLANEJADO (Etapa 7) |
 
 ## Etapa 2 — 35 testes no `core`
@@ -90,6 +91,7 @@ Tipo de evidência: **observação funcional** (não é medição de desempenho)
 |---|---|---|
 | `mvn test` (57 unitários) | Máquina do autor, informado em 12/11/2026 | Passou (57 testes). A saída completa não foi anexada: contagem por módulo e tempos **não registrados** |
 | `mvn test -Pintegration` (85 testes) | Máquina do autor, Docker Desktop aberto, informado em 12/11/2026 | Passou (85 testes). Mesma observação |
+| Contagem por módulo (relatórios do Surefire da execução com `-Pintegration` de 14/11/2026, já com a Etapa 5) | Máquina do autor | core 35, api-contract 11, infrastructure 22, adapter-container 17 (soma 85, igual ao esperado da Etapa 4); falhas, erros e ignorados 0 |
 
 ### Limitações
 
@@ -121,17 +123,18 @@ Fora do registro, por serem de responsabilidade do framework: rota inexistente e
 
 | Execução | Onde | Resultado |
 |---|---|---|
-| `mvn test` (76 esperados) | Máquina do autor | Passou, sem falhas observadas (informado). A saída completa não foi anexada: **contagens por módulo não registradas**; o total de 76 permanece o valor esperado |
-| `mvn test -Pintegration` (104 esperados) | Máquina do autor, Docker Desktop aberto | Idem |
+| `mvn test` (76 esperados) | Máquina do autor | `BUILD SUCCESS` nos 5 módulos (informado). A contagem exata dos unitários não foi registrada à parte; os números por módulo abaixo vêm da execução com integração |
+| `mvn test -Pintegration` (104 esperados) | Máquina do autor, Docker Desktop aberto | `BUILD SUCCESS` nos 5 módulos. Relatórios do Surefire (14/11/2026): core 35, api-contract 11, infrastructure 22, adapter-container 17 e adapter-functions 19 = **104 testes; 0 falhas, 0 erros, 0 ignorados** |
 | `mvn -pl adapter-functions -am clean package` | Máquina do autor | Gerou a pasta executável; `func start` a carregou e o smoke rodou contra a porta 7071 (primeira tentativa, sem `clean`, falhou: T-009) |
 | `func start` | Máquina do autor | Core Tools 4.16.0, runtime 4.1054.250.26428; worker Java iniciado; `java -version` 21.0.9 (Oracle) e `JAVA_HOME` = `C:\Program Files\Java\jdk-21` |
 | `GET /api/books?size=3` | Máquina do autor | 200; `totalElements` 10000, `totalPages` 3334, `size` 3, primeiro título `Capitaes Areia vol. 1045` |
 | `GET /health/ready` após religar o banco | Máquina do autor | `status: UP`, `database: UP` |
 | Banco parado (`docker compose stop postgres`) | Máquina do autor | `/health` `UP`; `/health/ready` 503; `GET /api/books?size=1` 503 |
 | `api-smoke.ps1` nos dois endereços | Máquina do autor | Registros de 255 linhas cada |
-| `Compare-Object` dos registros | Máquina do autor | Só linhas `content-type`: nos 3 `DELETE` com 204, o Functions responde `text/plain` e o container não envia `Content-Type` (T-010). Status e corpos dos 42 cenários, inclusive pesquisa, erros e ordem do PUT, não apareceram como diferentes |
+| `Compare-Object` dos registros (1ª execução) | Máquina do autor | Só linhas `content-type`: nos 3 `DELETE` com 204, o Functions responde `text/plain` e o container não envia `Content-Type` (T-010). Status e corpos dos 42 cenários, inclusive pesquisa, erros e ordem do PUT, não apareceram como diferentes |
+| `api-smoke.ps1` repetido com o script ajustado (registra `(sem corpo)` no 204) e `Compare-Object` | Máquina do autor, 14/11/2026 | 42 cenários nos dois endereços; **`Compare-Object` sem saída: registros idênticos** |
 
-Pendente: repetir os dois registros com o `api-smoke.ps1` ajustado (que registra `(sem corpo)` no 204) e confirmar `Compare-Object` sem saída; registrar as contagens por módulo de `mvn test` e `mvn test -Pintegration` (`mvn test | Select-String` com filtro, ver `README.md`).
+Pendências de validação local: nenhuma. A repetição dos registros com o script ajustado está registrada na linha acima.
 
 ### Riscos da Etapa 5 — situação
 
@@ -143,3 +146,26 @@ Pendente: repetir os dois registros com o `api-smoke.ps1` ajustado (que registra
 | Precedência da rota literal `api/books/search` sobre `api/books/{id}` | **Falhou** (T-008); a pesquisa passou a ser decidida no código de `getBook`; confirmada pelo smoke |
 | Jackson 3 com a biblioteca do Functions 3.2.4 | Funcionou: JSON dos cenários do smoke igual ao do container |
 | Decodificação de parâmetros de consulta (`%20`) e leitura do corpo como texto | Funcionou: cenários de pesquisa e de POST/PUT iguais nos dois registros |
+
+
+## Etapa 6 — imagem Docker da API (ESCRITO; execução pendente)
+
+### Verificações previstas
+
+| # | Verificação | Como | Resultado esperado |
+|---|---|---|---|
+| 1 | Construção da imagem | `docker build -t library-api:local .` | Termina sem erro |
+| 2 | Conteúdo da imagem | `docker images`; `docker run --rm --entrypoint java library-api:local -version`; `... --entrypoint id ...`; `docker image inspect eclipse-temurin:21-jre-noble ...` | Tamanho anotado; Java 21 Temurin; `uid=10001(app)`; *digest* da base anotado |
+| 3 | Execução ligada ao banco | `.\scripts\run-image.ps1` | `Started LibraryApplication`, `Tomcat started on port 8080`, `Picked up JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0` |
+| 4 | Endpoints básicos | `/health`, `/health/ready`, listagem na porta 8081 | Mesmos valores da Etapa 3 (`totalElements` 10000, `totalPages` 3334) |
+| 5 | Equivalência com o JAR | `api-smoke.ps1` na porta 8081 e `Compare-Object` com `smoke-container.txt` | Sem saída (42 cenários) |
+| 6 | Encerramento | `docker stop library-api-local` | Encerra em poucos segundos; log de *graceful shutdown* |
+| 7 | Limites (opcional) | `run-image.ps1 -Memory 512m -Cpus 1` e `docker exec ... java -XX:+PrintFlagsFinal -version` | `MaxHeapSize` por volta de 402653184 |
+
+### Resultados observados (Etapa 6)
+
+| Execução | Onde | Resultado |
+|---|---|---|
+| Verificações 1 a 7 | Máquina do autor | **PENDENTE** |
+
+Não coberto nesta etapa: desempenho e consumo de recursos sob carga (Etapas 7 e 10), execução com a imagem no Azure (Etapa 9) e varredura de vulnerabilidades da imagem.

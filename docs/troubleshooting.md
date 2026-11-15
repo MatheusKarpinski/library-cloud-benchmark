@@ -60,7 +60,7 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 - **Sintoma:** o `Compare-Object` entre `smoke-container.txt` e `smoke-functions.txt` listou apenas linhas `content-type`. Nos três cenários `DELETE` com status 204, o Functions responde `content-type: text/plain` e o container não envia `Content-Type`. Status e corpos (inclusive de todas as respostas de erro) não apareceram como diferentes.
 - **Causa:** o runtime do Functions acrescenta `Content-Type` a respostas sem corpo; o Spring/Tomcat não. Sem corpo, o cabeçalho não tem significado para o cliente.
 - **Solução:** nenhuma no código; **diferença inerente documentada** (`architecture.md`). O `api-smoke.ps1` passou a registrar `(sem corpo)` no lugar do `Content-Type` quando a resposta não tem corpo, para o `Compare-Object` ficar sem ruído.
-- **Observação:** a contagem de linhas listadas na saída colada do `Compare-Object` (3 de um lado, 2 do outro) não coincide com os 3 cenários; possível perda na colagem. Repetir os dois registros com o script ajustado para confirmar que não há outra diferença.
+- **Confirmação:** com o script ajustado, os dois registros foram repetidos em 14/11/2026 (42 cenários cada) e o `Compare-Object` **não listou nenhuma linha**. (A contagem de linhas da primeira saída colada não fechava com os 3 cenários; foi tratada como perda na colagem.)
 - **Etapa 5, 14/11/2026** (saídas informadas pelo autor).
 
 ## Problemas conhecidos (preventivo, ainda sem ocorrência)
@@ -77,3 +77,14 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 - **Mensagens sobre `AzureWebJobsStorage` no `func start`:** as funções são só HTTP e o guia exige armazenamento local apenas para gatilhos de Blob/Fila/Tabela; se aparecer aviso ou erro, registrar o texto exato aqui.
 - **Porta 7071 em uso:** outra instância do `func start`; encerrar com `Ctrl+C`.
 - **`Compare-Object` lista diferenças entre os registros do smoke:** abrir os dois arquivos, localizar o cenário (`### nome`) e classificar como defeito (corrigir) ou diferença inerente (documentar em `architecture.md`).
+
+### Etapa 6 (imagem Docker) — preventivo, sem ocorrência
+
+- **`docker build` falha ao baixar dependências do Maven:** rede instável; repetir o comando (o cache preserva o que já foi baixado). Se persistir, registrar a mensagem completa.
+- **`docker build` não encontra a imagem `maven:3.9-eclipse-temurin-21` ou `eclipse-temurin:21-jre-noble`:** a tag pode ter mudado; registrar a mensagem e ajustar o `Dockerfile` (e o ADR-022).
+- **Contexto de build muito grande ou segredos na imagem:** conferir o `.dockerignore` (deve excluir `.env`, `target/` e `.git/`); `docker build` mostra o tamanho do contexto transferido.
+- **`run-image.ps1` não acha o banco ou a rede:** `docker compose up -d`; conferir `docker ps` (o contêiner deve se chamar `library-postgres`).
+- **API na imagem sobe, mas não conecta ao banco:** o host dentro da rede do compose é `postgres` (não `localhost`); conferir `DB_USER` e `DB_PASSWORD` do `.env` e os logs do contêiner.
+- **`container name "/library-api-local" is already in use`:** `docker rm -f library-api-local`.
+- **`port is already allocated` (8081):** usar `-Port` com outro valor.
+- **`docker stop` demora cerca de 10 s e encerra à força:** a JVM pode não ter tratado o `SIGTERM`; registrar o tempo e as últimas linhas do log.

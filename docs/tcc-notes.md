@@ -58,9 +58,18 @@ Revisar as fontes diretamente antes de citar; as páginas da Microsoft mudam com
 | C16 | Em projetos Java, o plugin monta `target/azure-functions/<app>` com `host.json`, uma pasta com `function.json` por função, o JAR e `lib/`; as dependências do `pom.xml` são empacotadas pelo `package` | [DOC] | idem |
 | C17 | O guia afirma que é necessário configurar uma conta de armazenamento em `local.settings.json` para executar localmente gatilhos de Blob, Fila e Tabela (as funções deste projeto usam apenas gatilhos HTTP) | [DOC] | idem |
 
+## C5. Imagem Docker da API em container (Etapa 6; acessos em 15/11/2026)
+
+| # | Afirmação | Tipo | Fonte |
+|---|---|---|---|
+| C18 | A imagem oficial `eclipse-temurin` publica a tag `21-jre-noble` (JRE 21 sobre Ubuntu 24.04), para linux/amd64, com cerca de 95 MB comprimidos na listagem consultada (patch 21.0.10_7 na captura) | [DOC secundária] captura da listagem de tags do Docker Hub | https://hub.docker.com/_/eclipse-temurin/tags — **reconferir antes de citar** (tamanho e patch mudam) |
+| C19 | A documentação das imagens oficiais lista variantes JRE do Java 21 (`alpine`, `jammy`, `ubi9-minimal` em captura antiga, sem `noble`); as listas mudam com o tempo, por isso a tag e o *digest* efetivos devem ser registrados após cada build | [DOC secundária] | https://github.com/docker-library/docs/blob/master/eclipse-temurin/README.md |
+| C20 | Comportamento padrão da JVM sob limite de memória de contêiner (`MaxRAMPercentage`) e efeito de `-XX:MaxRAMPercentage=75.0` | **NÃO CONSULTADO** | Reconferir na documentação do JDK antes de citar; a validação local (Etapa 6, passo 7) mostra o `MaxHeapSize` efetivo |
+| C21 | A imagem `maven:3.9-eclipse-temurin-21` para o estágio de build | [NÃO VERIFICADO] a tag aparece em exemplos públicos de Dockerfile Java (ex.: https://oneuptime.com/blog/post/2026-02-08-how-to-speed-up-docker-build-for-javamaven-projects/view); o `docker build` do autor a confirma | — |
+
 ## D. Decisões de projeto (não são recomendações da literatura)
 
-Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID gerado na aplicação; serviço único; paginação padrão 20/máx. 100; módulo `api-contract`; PostgreSQL 17; pool 5/1; OpenAPI manual; 503 para falha de persistência; testes de integração por etiqueta e perfil Maven; adaptador Functions com lógica HTTP sem dependência do runtime e rotas sem prefixo (ADR-020); Jackson 3 no Functions (ADR-021). Ver ADRs.
+Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID gerado na aplicação; serviço único; paginação padrão 20/máx. 100; módulo `api-contract`; PostgreSQL 17; pool 5/1; OpenAPI manual; 503 para falha de persistência; testes de integração por etiqueta e perfil Maven; adaptador Functions com lógica HTTP sem dependência do runtime e rotas sem prefixo (ADR-020); Jackson 3 no Functions (ADR-021); imagem Docker multi-estágio com JRE Temurin 21 e `MaxRAMPercentage=75` (ADR-022). Ver ADRs.
 
 ## E. Hipóteses a testar (sem comprovação ainda)
 
@@ -74,10 +83,10 @@ Nenhuma medição de **desempenho** até o momento.
 
 **Observações funcionais (Etapa 5, 14/11/2026, informado pelo autor)** — [MEDIDO como observação funcional, não de desempenho]:
 - O Azure Functions local (Core Tools 4.16.0, runtime 4.1054.250.26428, JDK Oracle 21.0.9, Windows) executou a API Java 21 com Jackson 3.
-- Em 42 cenários, as respostas do container e do Functions foram iguais em status e corpo; única diferença: `Content-Type` do 204 (`text/plain` no Functions; ausente no container).
+- Em 42 cenários, as respostas do container e do Functions foram iguais em status e corpo; única diferença observada: `Content-Type` do 204 (`text/plain` no Functions; ausente no container), tratada como diferença inerente (T-010). Registros repetidos com o script ajustado: idênticos.
 - O host do Functions entregou `GET /api/books/search` à função de `api/books/{id}`; a escolha passou ao código (T-008).
 
-**Testes automatizados (Etapa 4, informado pelo autor em 12/11/2026)** — `mvn test` (57 testes) e `mvn test -Pintegration` (85 testes) passaram; saída completa não registrada (contagem por módulo e tempos ausentes).
+**Testes automatizados (Etapa 4, informado pelo autor em 12/11/2026)** — `mvn test` (57 testes) e `mvn test -Pintegration` (85 testes) passaram; contagem por módulo observada em 14/11/2026 (core 35, api-contract 11, infrastructure 22, adapter-container 17; soma 85); tempos não registrados. Com a Etapa 5: 104 testes (adapter-functions 19), 0 falhas, 0 erros, 0 ignorados.
 
 **Observações funcionais (Etapa 3, 02/11/2026)** — [MEDIDO como observação funcional, não de desempenho]:
 - A API em container responde 400, 404, 409 e 503 conforme o contrato; rota inexistente usa o formato do Spring (diferença entre adaptadores a considerar na comparação).

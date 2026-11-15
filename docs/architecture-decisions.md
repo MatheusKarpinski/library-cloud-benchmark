@@ -169,7 +169,7 @@ As propostas continuam aguardando aprovação do autor.
 
 | ADR | Situação | Evidência |
 |---|---|---|
-| ADR-019 | PROPOSTA — validada funcionalmente | `mvn test` (57 testes) e `mvn test -Pintegration` (85 testes) passaram na máquina do autor (informado; contagem por módulo e tempos não registrados) |
+| ADR-019 | PROPOSTA — validada funcionalmente | `mvn test` (57 testes) e `mvn test -Pintegration` (85 testes) passaram na máquina do autor (informado; contagem por módulo observada em 14/11/2026: core 35, api-contract 11, infrastructure 22, adapter-container 17; tempos não registrados) |
 | ADR-017 | PROPOSTA — parcialmente validada | O teste de consistência do `openapi.yaml` (3 testes de `OpenApiDocumentTest`) está entre os 57 unitários informados; cobre rotas, métodos e códigos de erro, **não** os esquemas dos objetos |
 
 As propostas dos ADR-014 a ADR-019 continuam aguardando aprovação explícita do autor.
@@ -210,7 +210,23 @@ As propostas dos ADR-014 a ADR-019 continuam aguardando aprovação explícita d
 
 | ADR | Situação | Evidência |
 |---|---|---|
-| ADR-020 | PROPOSTA — validada funcionalmente (local) | `func start` com Core Tools 4.16.0 e JDK 21.0.9; `api-smoke.ps1` com 42 cenários: registros iguais no container e no Functions, salvo o `Content-Type` do 204 (T-010); a pesquisa precisou ser decidida no código (T-008) |
+| ADR-020 | PROPOSTA — validada funcionalmente (local) | `func start` com Core Tools 4.16.0 e JDK 21.0.9; `api-smoke.ps1` com 42 cenários: registros iguais no container e no Functions (na 1ª execução, só o `Content-Type` do 204 diferia, T-010; após o ajuste do script, `Compare-Object` sem saída); 104 testes com integração sem falhas; a pesquisa precisou ser decidida no código (T-008) |
 | ADR-021 | PROPOSTA — validada funcionalmente (local) | JSON dos cenários do smoke igual ao do container (corpos de sucesso e de erro) |
 
 Os ADR-014 a ADR-021 continuam aguardando aprovação explícita do autor.
+
+---
+## ADR-022 — Imagem Docker da API em container (15/11/2026) — **PROPOSTA** (escrita na Etapa 6; validação pendente)
+- **Contexto:** o Azure Container Apps executa uma imagem de contêiner; a imagem precisa ser reproduzível, pequena o bastante e sem segredos, e não pode introduzir variáveis desnecessárias na comparação com o Functions.
+- **Decisão:**
+  1. `Dockerfile` multi-estágio na raiz. Estágio de build: `maven:3.9-eclipse-temurin-21`, com `mvn -pl adapter-container -am package -Dmaven.test.skip=true` (só `core`, `api-contract`, `infrastructure` e `adapter-container`; os testes foram executados nas Etapas 4 e 5).
+  2. Estágio de execução: `eclipse-temurin:21-jre-noble` (JRE Temurin 21 sobre Ubuntu 24.04, glibc, linux/amd64): mesma distribuição de JDK adotada no projeto, JRE em vez de JDK.
+  3. Usuário sem privilégios (`app`, uid 10001); porta 8080; sem `HEALTHCHECK` no Dockerfile (as sondas serão configuradas no Container Apps, Etapa 9, sobre `/health` e `/health/ready`).
+  4. Parâmetro de JVM padrão: `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75.0`, substituível por variável de ambiente. É uma **variável do experimento**: o valor efetivo, a CPU e a memória do contêiner devem ser registrados em cada bateria.
+  5. Configuração **somente por variáveis de ambiente**; nenhum segredo na imagem; `.dockerignore` exclui `.env`, `local.settings.json`, `target/` e `.git`.
+  6. Execução local pelo `scripts/run-image.ps1`, na rede do `docker-compose.yml` (banco acessado como `postgres`), com a porta publicada em `127.0.0.1:8081`.
+- **Justificativa:** o build dentro da imagem não depende do ambiente do autor; o JRE reduz o tamanho; a base glibc evita adicionar outra biblioteca C (musl) como diferença entre os ambientes; sem a opção de heap, a JVM usaria só 25% da memória do contêiner por padrão (a confirmar na documentação do JDK, `tcc-notes.md`, C20).
+- **Alternativas:** copiar o JAR já construído (depende do ambiente local, menos reproduzível); Jib ou *buildpacks* (`spring-boot:build-image`) (mais ferramentas); Alpine (menor, mas musl); imagem mínima com `jlink` ou *distroless* e JAR em camadas (otimizações para depois de medir); `HEALTHCHECK` no Dockerfile (exigiria ferramenta HTTP na imagem; as sondas do Container Apps cumprem o papel).
+- **Consequências:** (+) imagem reproduzível a partir do código-fonte; (−) o build exige rede; a tag `21-jre-noble` é flutuante (o resumo/*digest* da base e a versão do Java devem ser registrados após cada build); o tamanho da imagem pode influenciar o tempo de início de novas réplicas (a avaliar na Etapa 10).
+- **Impacto na comparação:** **variáveis de controle** (versão do JRE da imagem, `MaxRAMPercentage`, CPU e memória); o Functions usa o runtime gerenciado pela plataforma, então a comparação de memória/CPU entre os modelos precisa registrar essas diferenças.
+- **Fontes:** `tcc-notes.md`, C18 a C21 (acessos em 15/11/2026).
