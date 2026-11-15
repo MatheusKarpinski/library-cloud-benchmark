@@ -1,6 +1,6 @@
 # Arquitetura
 
-Status: núcleo **TESTADO** · `api-contract`, `infrastructure`, `adapter-container` **TESTADOS** manualmente (Etapa 3) · `adapter-functions` **PLANEJADO**.
+Status: núcleo **TESTADO** · `api-contract`, `infrastructure`, `adapter-container` **TESTADOS** (manualmente na Etapa 3; testes automatizados informados como aprovados na Etapa 4) · `adapter-functions` **TESTADO** localmente (Etapa 5, 14/11/2026).
 
 ## Princípio central
 
@@ -10,7 +10,7 @@ Um **núcleo compartilhado** (regras de negócio e casos de uso) e **dois adapta
 
 ```
  adapter-container (Spring Boot)      adapter-functions (Azure Functions)
-   (TESTADO)                             (PLANEJADO)
+   (TESTADO)                             (TESTADO local, Etapa 5)
         \                                 /
          +--- api-contract (DTOs + erros) -+      Java puro                    <- TESTADO
          +--- infrastructure -------------+      JDBC + PostgreSQL + Hikari    <- TESTADO
@@ -28,7 +28,7 @@ A seta de dependência sempre aponta para dentro: o `core` não conhece ninguém
 | `api-contract` | DTOs (`BookRequest`, `BookResponse`, `PageResponse`), `ErrorMapper` (exceção → HTTP), respostas de saúde | `core` | TESTADO (Etapa 3) |
 | `infrastructure` | `JdbcBookRepository`, pool HikariCP, `DatabaseConfig` (variáveis de ambiente), `DatabaseHealthChecker` | `core`, HikariCP, driver PostgreSQL | TESTADO (Etapa 3) |
 | `adapter-container` | Controllers REST, tratamento de erros, `/health`, montagem dos objetos | `core`, `api-contract`, `infrastructure`, Spring Boot | TESTADO (Etapa 3) |
-| `adapter-functions` | Funções HTTP que chamam o mesmo `BookService` | `core`, `infrastructure`, biblioteca Azure Functions | PLANEJADO (Etapa 5) |
+| `adapter-functions` | Funções HTTP que chamam o mesmo `BookService`; lógica HTTP em `BookApiHandler`, sem dependência do runtime | `core`, `api-contract`, `infrastructure`, biblioteca Azure Functions, Jackson 3 | TESTADO localmente (Etapa 5) |
 
 ## Mapa de erros (contrato que os dois adaptadores devem seguir)
 
@@ -42,7 +42,7 @@ A seta de dependência sempre aponta para dentro: o `core` não conhece ninguém
 
 A tabela vive em **um único lugar**: `ErrorMapper` (módulo `api-contract`), usado pelos dois adaptadores (ADR-018).
 
-## Diferenças inevitáveis entre os dois adaptadores (a documentar durante a Etapa 5)
+## Diferenças inevitáveis entre os dois adaptadores (registradas na Etapa 5; confirmadas na execução local de 14/11/2026, exceto onde indicado)
 
 | Aspecto | Container Apps | Functions | Pode influenciar |
 |---|---|---|---|
@@ -51,6 +51,11 @@ A tabela vive em **um único lugar**: `ErrorMapper` (módulo `api-contract`), us
 | Erros do próprio framework (rota inexistente, método não permitido) | Formato padrão do Spring | Formato do runtime Functions | Pequena diferença nas respostas de erro de rotas inexistentes |
 | Modelo de escala | Regras (ex.: requisições HTTP simultâneas) por réplica | Gerenciada pela plataforma por instância | Escalabilidade |
 | Cobrança | Recursos alocados/consumidos por réplica | Tempo de execução (+ instâncias sempre prontas, se houver) | Custo |
+| `Content-Type` em respostas sem corpo (204) | Nenhum cabeçalho | `text/plain` (observado em 14/11/2026, T-010) | Nenhum efeito prático |
+| Serialização JSON | Mapper configurado pelo Spring Boot | `JsonMapper` do Jackson 3 montado à parte (ADR-021) | Pequenas diferenças de formato (verificadas pelo `api-smoke.ps1`) |
+| Erro inesperado (fora das exceções conhecidas) | Tratamento padrão do Spring (formato do framework, status 500) | `500 INTERNAL_ERROR` no formato da aplicação | Corpo da resposta em falhas raras |
+| Conversão de `page`/`size` | Conversor numérico do Spring | `Integer.parseInt` após `strip()` | Formatos numéricos incomuns |
+| Ciclo de vida do pool de conexões | Fechado no encerramento do contexto Spring | Criado na primeira requisição e não fechado explicitamente | Conexões ao encerrar/escalar para zero |
 
 > Estas diferenças são **ameaças à validade**: os resultados não representam um isolamento
 > perfeito do efeito "arquitetura". **[DECISÃO]** de registrar isso em toda análise.
@@ -60,3 +65,12 @@ A tabela vive em **um único lugar**: `ErrorMapper` (módulo `api-contract`), us
 - **Ordem das verificações em PUT:** id válido (400) → livro existe (404) → dados válidos (400) → ISBN livre (409). Observado: `PUT` em id inexistente com corpo incompleto responde **404**, não 400.
 - **Rota inexistente** (`/api/nada`) responde 404 no formato padrão do Spring: `{"timestamp":...,"status":404,"error":"Not Found","path":...}`, **diferente** do formato da aplicação (`code`, `message`, `violations`). O Azure Functions responderá rotas inexistentes à sua maneira; os testes de carga não devem depender dessas respostas. **[MEDIDO — observação funcional]**
 - **Banco indisponível:** `/health` continua 200, `/health/ready` responde 503 e os endpoints de dados respondem 503 `SERVICE_UNAVAILABLE` sem detalhe técnico; o detalhe fica no log. Após religar o banco a API se recupera sem reinício.
+
+## Comportamentos do adaptador Functions (verificados pelo smoke de 14/11/2026, salvo onde indicado)
+
+- **Rotas** iguais às do container: `host.json` zera o `routePrefix`; sem isso o Functions acrescentaria `/api` e as rotas virariam `/api/api/books`.
+- **Ordem das verificações** igual à do Spring (corpo antes do serviço; `page` e `size` antes do serviço): detalhes em `implementation.md`.
+- **Falha ao montar os objetos** (por exemplo, `DB_*` ausente): `500 INTERNAL_ERROR` genérico, detalhe no log; nova tentativa na requisição seguinte.
+- **Rota inexistente e método não permitido:** responderão no formato do runtime do Functions (não medido); os testes de carga não devem depender dessas respostas.
+- **Pesquisa:** o host entregou `GET /api/books/search` à função da rota `api/books/{id}` (T-008); a função `getBook` desvia o segmento exato `search` para a pesquisa.
+- **Equivalência:** verificada apenas pelos cenários do `scripts/api-smoke.ps1` (ver `testing.md`), não por construção. Única diferença observada: `Content-Type` do 204 (T-010).

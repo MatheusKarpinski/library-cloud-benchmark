@@ -57,3 +57,7 @@ Regras e limites: ver `implementation.md`.
 | `INTERNAL_ERROR` | 500 | Erro inesperado |
 
 Rotas inexistentes e métodos não permitidos retornam o formato padrão do framework (diferença documentada em `architecture.md`).
+
+## Adaptador Azure Functions (Etapa 5)
+
+O adaptador Functions expõe as mesmas rotas e o mesmo contrato (localmente, `http://localhost:7071`). Equivalência verificada somente por `scripts/api-smoke.ps1` (ver `testing.md`); status: TESTADO localmente em 14/11/2026 (única diferença observada: `Content-Type` do 204, ver `troubleshooting.md`, T-010).

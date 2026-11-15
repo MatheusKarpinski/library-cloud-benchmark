@@ -1,0 +1,255 @@
+### saude (liveness)
+GET /health
+status: 200
+content-type: application/json
+body: {"status":"UP"}
+
+### saude (readiness)
+GET /health/ready
+status: 200
+content-type: application/json
+body: {"status":"UP","database":"UP"}
+
+### listagem size=3
+GET /api/books?size=3
+status: 200
+content-type: application/json
+body: {"items":[{"id":"<uuid>","titulo":"Capitaes Areia vol. 1045","autor":"Rachel de Queiroz","isbn":"9780000001045","anoPublicacao":2020,"categoria":"Poesia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1145","autor":"Jose de Alencar","isbn":"9780000001145","anoPublicacao":1970,"categoria":"Historia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1245","autor":"Rachel de Queiroz","isbn":"9780000001245","anoPublicacao":1995,"categoria":"Ensaio","disponivel":true}],"page":0,"size":3,"totalElements":10000,"totalPages":3334}
+
+### listagem page=1 size=2
+GET /api/books?page=1&size=2
+status: 200
+content-type: application/json
+body: {"items":[{"id":"<uuid>","titulo":"Capitaes Areia vol. 1245","autor":"Rachel de Queiroz","isbn":"9780000001245","anoPublicacao":1995,"categoria":"Ensaio","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1345","autor":"Jose de Alencar","isbn":"9780000001345","anoPublicacao":2020,"categoria":"Poesia","disponivel":true}],"page":1,"size":2,"totalElements":10000,"totalPages":5000}
+
+### listagem alem da ultima pagina
+GET /api/books?page=99999&size=5
+status: 200
+content-type: application/json
+body: {"items":[],"page":99999,"size":5,"totalElements":10000,"totalPages":2000}
+
+### listagem com page e size vazios (padroes)
+GET /api/books?page=&size=
+status: 200
+content-type: application/json
+body: {"items":[{"id":"<uuid>","titulo":"Capitaes Areia vol. 1045","autor":"Rachel de Queiroz","isbn":"9780000001045","anoPublicacao":2020,"categoria":"Poesia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1145","autor":"Jose de Alencar","isbn":"9780000001145","anoPublicacao":1970,"categoria":"Historia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1245","autor":"Rachel de Queiroz","isbn":"9780000001245","anoPublicacao":1995,"categoria":"Ensaio","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1345","autor":"Jose de Alencar","isbn":"9780000001345","anoPublicacao":2020,"categoria":"Poesia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1445","autor":"Rachel de Queiroz","isbn":"9780000001445","anoPublicacao":1970,"categoria":"Historia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 145","autor":"Jose de Alencar","isbn":"9780000000145","anoPublicacao":2020,"categoria":"Poesia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1545","autor":"Jose de Alencar","isbn":"9780000001545","anoPublicacao":1995,"categoria":"Ensaio","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1645","autor":"Rachel de Queiroz","isbn":"9780000001645","anoPublicacao":2020,"categoria":"Poesia","disponivel":false},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1745","autor":"Jose de Alencar","isbn":"9780000001745","anoPublicacao":1970,"categoria":"Historia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1845","autor":"Rachel de Queiroz","isbn":"9780000001845","anoPublicacao":1995,"categoria":"Ensaio","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 1945","autor":"Jose de Alencar","isbn":"9780000001945","anoPublicacao":2020,"categoria":"Poesia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 2045","autor":"Rachel de Queiroz","isbn":"9780000002045","anoPublicacao":1970,"categoria":"Historia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 2145","autor":"Jose de Alencar","isbn":"9780000002145","anoPublicacao":1995,"categoria":"Ensaio","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 2245","autor":"Rachel de Queiroz","isbn":"9780000002245","anoPublicacao":2020,"categoria":"Poesia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 2345","autor":"Jose de Alencar","isbn":"9780000002345","anoPublicacao":1970,"categoria":"Historia","disponivel":false},{"id":"<uuid>","titulo":"Capitaes Areia vol. 2445","autor":"Rachel de Queiroz","isbn":"9780000002445","anoPublicacao":1995,"categoria":"Ensaio","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 245","autor":"Rachel de Queiroz","isbn":"9780000000245","anoPublicacao":1970,"categoria":"Historia","disponivel":false},{"id":"<uuid>","titulo":"Capitaes Areia vol. 2545","autor":"Jose de Alencar","isbn":"9780000002545","anoPublicacao":2020,"categoria":"Poesia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 2645","autor":"Rachel de Queiroz","isbn":"9780000002645","anoPublicacao":1970,"categoria":"Historia","disponivel":true},{"id":"<uuid>","titulo":"Capitaes Areia vol. 2745","autor":"Jose de Alencar","isbn":"9780000002745","anoPublicacao":1995,"categoria":"Ensaio","disponivel":true}],"page":0,"size":20,"totalElements":10000,"totalPages":500}
+
+### pesquisa dom casmurro
+GET /api/books/search?title=dom%20casmurro&size=2
+status: 200
+content-type: application/json
+body: {"items":[{"id":"<uuid>","titulo":"Dom Casmurro vol. 100","autor":"Guimaraes Rosa","isbn":null,"anoPublicacao":1975,"categoria":"Biografia","disponivel":true},{"id":"<uuid>","titulo":"Dom Casmurro vol. 1000","autor":"Machado de Assis","isbn":null,"anoPublicacao":1975,"categoria":"Biografia","disponivel":true}],"page":0,"size":2,"totalElements":100,"totalPages":50}
+
+### pesquisa sem diferenciar maiusculas
+GET /api/books/search?title=DOM%20CASMURRO&size=1
+status: 200
+content-type: application/json
+body: {"items":[{"id":"<uuid>","titulo":"Dom Casmurro vol. 100","autor":"Guimaraes Rosa","isbn":null,"anoPublicacao":1975,"categoria":"Biografia","disponivel":true}],"page":0,"size":1,"totalElements":100,"totalPages":100}
+
+### pesquisa sem resultado
+GET /api/books/search?title=nada-existe-xyz
+status: 200
+content-type: application/json
+body: {"items":[],"page":0,"size":20,"totalElements":0,"totalPages":0}
+
+### page nao numerico
+GET /api/books?page=abc
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"page","message":"valor com tipo inválido"}]}
+
+### page negativo
+GET /api/books?page=-1
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"page","message":"deve ser maior ou igual a 0"}]}
+
+### size zero
+GET /api/books?size=0
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"size","message":"deve estar entre 1 e 100"}]}
+
+### size acima do maximo
+GET /api/books?size=1000
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"size","message":"deve estar entre 1 e 100"}]}
+
+### page e size invalidos juntos
+GET /api/books?page=-1&size=1000
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"page","message":"deve ser maior ou igual a 0"},{"field":"size","message":"deve estar entre 1 e 100"}]}
+
+### page nao numerico e size nao numerico
+GET /api/books?page=abc&size=xyz
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"page","message":"valor com tipo inválido"}]}
+
+### pesquisa com termo em branco
+GET /api/books/search?title=%20%20
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"title","message":"é obrigatório"}]}
+
+### pesquisa sem termo
+GET /api/books/search
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"title","message":"é obrigatório"}]}
+
+### pesquisa com page nao numerico
+GET /api/books/search?title=dom&page=abc
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"page","message":"valor com tipo inválido"}]}
+
+### POST corpo vazio de campos
+POST /api/books
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"titulo","message":"é obrigatório"},{"field":"autor","message":"é obrigatório"},{"field":"categoria","message":"é obrigatório"},{"field":"anoPublicacao","message":"é obrigatório"}]}
+
+### POST JSON malformado
+POST /api/books
+status: 400
+content-type: application/json
+body: {"code":"MALFORMED_REQUEST","message":"Corpo da requisição ausente ou inválido (JSON malformado ou tipos incorretos)","violations":[]}
+
+### POST tipo incorreto
+POST /api/books
+status: 400
+content-type: application/json
+body: {"code":"MALFORMED_REQUEST","message":"Corpo da requisição ausente ou inválido (JSON malformado ou tipos incorretos)","violations":[]}
+
+### POST sem corpo
+POST /api/books
+status: 400
+content-type: application/json
+body: {"code":"MALFORMED_REQUEST","message":"Corpo da requisição ausente ou inválido (JSON malformado ou tipos incorretos)","violations":[]}
+
+### POST corpo null
+POST /api/books
+status: 400
+content-type: application/json
+body: {"code":"MALFORMED_REQUEST","message":"Corpo da requisição ausente ou inválido (JSON malformado ou tipos incorretos)","violations":[]}
+
+### POST livro valido (com acentos e ISBN com hifens)
+POST /api/books
+status: 201
+content-type: application/json
+location: /api/books/<uuid>
+body: {"id":"<uuid>","titulo":"Memórias Póstumas de Brás Cubas","autor":"Machado de Assis","isbn":"9788535902775","anoPublicacao":1881,"categoria":"Romance","disponivel":true}
+
+### GET do livro criado
+GET /api/books/<uuid>
+status: 200
+content-type: application/json
+body: {"id":"<uuid>","titulo":"Memórias Póstumas de Brás Cubas","autor":"Machado de Assis","isbn":"9788535902775","anoPublicacao":1881,"categoria":"Romance","disponivel":true}
+
+### POST com ISBN repetido
+POST /api/books
+status: 409
+content-type: application/json
+body: {"code":"CONFLICT","message":"Já existe um livro cadastrado com o ISBN 9788535902775","violations":[]}
+
+### POST segundo livro
+POST /api/books
+status: 201
+content-type: application/json
+location: /api/books/<uuid>
+body: {"id":"<uuid>","titulo":"Livro B","autor":"Autor B","isbn":"9788535914849","anoPublicacao":2000,"categoria":"Teste","disponivel":true}
+
+### POST com campo desconhecido e disponivel=false
+POST /api/books
+status: 201
+content-type: application/json
+location: /api/books/<uuid>
+body: {"id":"<uuid>","titulo":"Livro Extra","autor":"Autor","isbn":null,"anoPublicacao":2001,"categoria":"Teste","disponivel":false}
+
+### GET id mal formado
+GET /api/books/abc
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"id","message":"deve ser um UUID válido"}]}
+
+### GET id inexistente
+GET /api/books/<uuid>
+status: 404
+content-type: application/json
+body: {"code":"NOT_FOUND","message":"Livro não encontrado: <uuid>","violations":[]}
+
+### PUT JSON malformado em id inexistente (400 antes do 404)
+PUT /api/books/<uuid>
+status: 400
+content-type: application/json
+body: {"code":"MALFORMED_REQUEST","message":"Corpo da requisição ausente ou inválido (JSON malformado ou tipos incorretos)","violations":[]}
+
+### PUT corpo incompleto em id inexistente (404 antes da validacao)
+PUT /api/books/<uuid>
+status: 404
+content-type: application/json
+body: {"code":"NOT_FOUND","message":"Livro não encontrado: <uuid>","violations":[]}
+
+### PUT id mal formado
+PUT /api/books/abc
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"id","message":"deve ser um UUID válido"}]}
+
+### PUT corpo invalido em id existente
+PUT /api/books/<uuid>
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"titulo","message":"é obrigatório"},{"field":"autor","message":"é obrigatório"},{"field":"categoria","message":"é obrigatório"},{"field":"anoPublicacao","message":"é obrigatório"}]}
+
+### PUT com ISBN de outro livro
+PUT /api/books/<uuid>
+status: 409
+content-type: application/json
+body: {"code":"CONFLICT","message":"Já existe um livro cadastrado com o ISBN 9788535902775","violations":[]}
+
+### PUT valido
+PUT /api/books/<uuid>
+status: 200
+content-type: application/json
+body: {"id":"<uuid>","titulo":"Livro revisado","autor":"Autora","isbn":"9788535902775","anoPublicacao":2021,"categoria":"Ensaio","disponivel":false}
+
+### DELETE livro A
+DELETE /api/books/<uuid>
+status: 204
+content-type: (sem corpo)
+body: (vazio)
+
+### GET apos DELETE
+GET /api/books/<uuid>
+status: 404
+content-type: application/json
+body: {"code":"NOT_FOUND","message":"Livro não encontrado: <uuid>","violations":[]}
+
+### DELETE repetido
+DELETE /api/books/<uuid>
+status: 404
+content-type: application/json
+body: {"code":"NOT_FOUND","message":"Livro não encontrado: <uuid>","violations":[]}
+
+### DELETE id mal formado
+DELETE /api/books/abc
+status: 400
+content-type: application/json
+body: {"code":"VALIDATION_ERROR","message":"Dados inválidos","violations":[{"field":"id","message":"deve ser um UUID válido"}]}
+
+### DELETE livro B
+DELETE /api/books/<uuid>
+status: 204
+content-type: (sem corpo)
+body: (vazio)
+
+### DELETE livro extra
+DELETE /api/books/<uuid>
+status: 204
+content-type: (sem corpo)
+body: (vazio)
+

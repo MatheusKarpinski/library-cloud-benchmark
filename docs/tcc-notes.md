@@ -47,9 +47,20 @@ Revisar as fontes diretamente antes de citar; as páginas da Microsoft mudam com
 | C10 | O Testcontainers 2.0 (e o 2.0.2 em especial) é a linha compatível com Docker 29; o Spring Boot 4.0 traz o Testcontainers 2.0.2 por padrão | [DOC secundária] | Relatos de terceiros e atas de projeto; **reconferir nas notas de versão do Testcontainers e do Spring Boot** |
 | C11 | No Testcontainers 2.x os módulos têm prefixo `testcontainers-` e as classes ficam em pacotes por módulo (`org.testcontainers.postgresql.PostgreSQLContainer`, não genérica); o suporte a JUnit 4 foi removido | [DOC secundária] | Notas da versão 2.0.0 do Testcontainers (GitHub) |
 
+## C4. Azure Functions — adaptador Java (Etapa 5; acessos em 14/11/2026)
+
+| # | Afirmação | Tipo | Fonte |
+|---|---|---|---|
+| C12 | `azure-functions-java-library` 3.2.4 consta no Maven Central com data de 07/03/2026; existe também a 3.3.0 (29/04/2026), **não avaliada** neste projeto | [DOC secundária] | https://mvnrepository.com/artifact/com.microsoft.azure.functions/azure-functions-java-library — **reconferir no próprio Maven Central antes de citar** |
+| C13 | `azure-functions-maven-plugin` 1.40.0 consta como a versão mais recente listada, com data de 06/11/2025 | [DOC secundária] | https://mvnrepository.com/artifact/com.microsoft.azure/azure-functions-maven-plugin — **reconferir no Maven Central** |
+| C14 | Azure Functions Core Tools 4.16.0 é a versão instalada na máquina do autor | informado pelo autor | — (a versão mais recente disponível **não foi consultada**) |
+| C15 | O guia de Java do Functions lista o Java 21 para o runtime 4.x, mas as capturas consultadas divergem: uma lista o Java 21 para Windows e Linux; outra o descreve como *preview* no Linux. O mesmo guia diz que o Java do `pom.xml` deve corresponder ao Java usado no desenvolvimento e nos testes locais, e que `JAVA_HOME` deve apontar para o JDK usado na compilação | [DOC secundária / divergente] | https://learn.microsoft.com/azure/azure-functions/functions-reference-java — **reconferir na versão em inglês antes de citar** |
+| C16 | Em projetos Java, o plugin monta `target/azure-functions/<app>` com `host.json`, uma pasta com `function.json` por função, o JAR e `lib/`; as dependências do `pom.xml` são empacotadas pelo `package` | [DOC] | idem |
+| C17 | O guia afirma que é necessário configurar uma conta de armazenamento em `local.settings.json` para executar localmente gatilhos de Blob, Fila e Tabela (as funções deste projeto usam apenas gatilhos HTTP) | [DOC] | idem |
+
 ## D. Decisões de projeto (não são recomendações da literatura)
 
-Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID gerado na aplicação; serviço único; paginação padrão 20/máx. 100; módulo `api-contract`; PostgreSQL 17; pool 5/1; OpenAPI manual; 503 para falha de persistência; testes de integração por etiqueta e perfil Maven. Ver ADRs.
+Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID gerado na aplicação; serviço único; paginação padrão 20/máx. 100; módulo `api-contract`; PostgreSQL 17; pool 5/1; OpenAPI manual; 503 para falha de persistência; testes de integração por etiqueta e perfil Maven; adaptador Functions com lógica HTTP sem dependência do runtime e rotas sem prefixo (ADR-020); Jackson 3 no Functions (ADR-021). Ver ADRs.
 
 ## E. Hipóteses a testar (sem comprovação ainda)
 
@@ -60,6 +71,13 @@ Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID ge
 ## F. Resultados medidos
 
 Nenhuma medição de **desempenho** até o momento.
+
+**Observações funcionais (Etapa 5, 14/11/2026, informado pelo autor)** — [MEDIDO como observação funcional, não de desempenho]:
+- O Azure Functions local (Core Tools 4.16.0, runtime 4.1054.250.26428, JDK Oracle 21.0.9, Windows) executou a API Java 21 com Jackson 3.
+- Em 42 cenários, as respostas do container e do Functions foram iguais em status e corpo; única diferença: `Content-Type` do 204 (`text/plain` no Functions; ausente no container).
+- O host do Functions entregou `GET /api/books/search` à função de `api/books/{id}`; a escolha passou ao código (T-008).
+
+**Testes automatizados (Etapa 4, informado pelo autor em 12/11/2026)** — `mvn test` (57 testes) e `mvn test -Pintegration` (85 testes) passaram; saída completa não registrada (contagem por módulo e tempos ausentes).
 
 **Observações funcionais (Etapa 3, 02/11/2026)** — [MEDIDO como observação funcional, não de desempenho]:
 - A API em container responde 400, 404, 409 e 503 conforme o contrato; rota inexistente usa o formato do Spring (diferença entre adaptadores a considerar na comparação).

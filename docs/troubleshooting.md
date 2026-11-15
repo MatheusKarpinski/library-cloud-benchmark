@@ -44,7 +44,36 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 - **Solução:** conferir sempre com comandos que listem só os nomes (sem expor senhas).
 - **Etapa 3, 02/11/2026.**
 
+## T-008 — Pesquisa no Functions respondia 400 de `id` (rota `search` capturada por `{id}`)
+- **Sintoma:** `GET /api/books/search?title=dom%20casmurro&size=2` (e também `?title=dom&size=2`) respondia `400` com `{"code":"VALIDATION_ERROR",...,"violations":[{"field":"id","message":"deve ser um UUID válido"}]}`. A listagem `GET /api/books?size=3` funcionava (10000 elementos, 3334 páginas, primeiro título `Capitaes Areia vol. 1045`).
+- **Causa:** o log do `func start` mostrava `Executing 'Functions.getBook'` para essas requisições: o host entregou a pesquisa à função da rota `api/books/{id}` com `id = "search"`. A função `searchBooks`, de rota literal `api/books/search`, não teve precedência.
+- **Solução:** a função `searchBooks` foi removida e a escolha é feita no código de `getBook`: quando o segmento é exatamente `search`, ela executa a pesquisa; caso contrário, a consulta por id (mesmo comportamento do Spring, que distingue maiúsculas). A adaptação passou a ter 7 funções. **Correção confirmada**: os cenários de pesquisa do `api-smoke.ps1` ficaram idênticos nos dois adaptadores (14/11/2026).
+- **Etapa 5, 14/11/2026** (saídas informadas pelo autor).
+
+## T-009 — `func start` falha com `NoSuchMethodException` de função removida
+- **Sintoma:** após remover a função `searchBooks` do código e rodar `mvn -pl adapter-functions -am package` (sem `clean`), o `func start` listou 8 funções, inclusive `searchBooks`, e o worker registrou `Worker failed to load function: 'searchBooks'` com `NoSuchMethodException: There are no methods named "searchBooks" in class br.edu.tcc.librarycloud.functions.BookFunctions`.
+- **Causa:** a pasta `target\azure-functions\library-cloud-benchmark-fn-local` manteve a pasta (e o `function.json`) da função removida; o JAR novo já não tinha o método.
+- **Solução:** empacotar com `clean`: `mvn -pl adapter-functions -am clean package -DskipTests` (com o `func start` parado e o terminal fora da pasta empacotada, pois o Windows não apaga pastas em uso). O `adapter-functions\local.settings.json` fica fora de `target` e é copiado de novo pelo `package`.
+- **Etapa 5, 14/11/2026** (saída informada pelo autor).
+
+## T-010 — `Content-Type: text/plain` no 204 do Functions (diferença inerente)
+- **Sintoma:** o `Compare-Object` entre `smoke-container.txt` e `smoke-functions.txt` listou apenas linhas `content-type`. Nos três cenários `DELETE` com status 204, o Functions responde `content-type: text/plain` e o container não envia `Content-Type`. Status e corpos (inclusive de todas as respostas de erro) não apareceram como diferentes.
+- **Causa:** o runtime do Functions acrescenta `Content-Type` a respostas sem corpo; o Spring/Tomcat não. Sem corpo, o cabeçalho não tem significado para o cliente.
+- **Solução:** nenhuma no código; **diferença inerente documentada** (`architecture.md`). O `api-smoke.ps1` passou a registrar `(sem corpo)` no lugar do `Content-Type` quando a resposta não tem corpo, para o `Compare-Object` ficar sem ruído.
+- **Observação:** a contagem de linhas listadas na saída colada do `Compare-Object` (3 de um lado, 2 do outro) não coincide com os 3 cenários; possível perda na colagem. Repetir os dois registros com o script ajustado para confirmar que não há outra diferença.
+- **Etapa 5, 14/11/2026** (saídas informadas pelo autor).
+
 ## Problemas conhecidos (preventivo, ainda sem ocorrência)
 
 - **`Could not find a valid Docker environment` ao rodar `mvn test -Pintegration`:** o Docker Desktop não está aberto ou o motor ainda não iniciou. Abrir o Docker Desktop, aguardar "Engine running" e repetir. Se aparecer `client version ... is too old`, a versão do Testcontainers não corresponde ao Docker instalado; conferir a versão gerenciada pelo BOM com `mvn dependency:tree`.
 - **Primeira execução lenta dos testes de integração:** o Docker baixa a imagem auxiliar do Testcontainers e as dependências; execuções seguintes são mais rápidas.
+
+### Etapa 5 (Azure Functions local) — preventivo, sem ocorrência
+
+- **`func` não é reconhecido:** o Core Tools não está no `PATH` ou o terminal é anterior à instalação. Fechar e reabrir o terminal; `func --version`.
+- **Todas as rotas respondem `500 INTERNAL_ERROR`:** o log da função mostra a lista de variáveis `DB_*` ausentes. A pasta empacotada não tem `local.settings.json` (o `package` foi executado antes do `new-local-settings.ps1`). Rodar `.\scripts\new-local-settings.ps1` (ele grava também na pasta empacotada, se existir) e reiniciar o `func start`.
+- **`func start` lista 0 funções ou o worker Java não inicia:** conferir `java -version`, `echo $env:JAVA_HOME` e a versão do Core Tools; registrar a saída completa aqui (o suporte ao Java 21 no Core Tools local no Windows ainda não foi confirmado).
+- **Pasta `target\azure-functions\library-cloud-benchmark-fn-local` ausente após o `package`:** registrar a saída completa do Maven (objetivo `azure-functions:package`).
+- **Mensagens sobre `AzureWebJobsStorage` no `func start`:** as funções são só HTTP e o guia exige armazenamento local apenas para gatilhos de Blob/Fila/Tabela; se aparecer aviso ou erro, registrar o texto exato aqui.
+- **Porta 7071 em uso:** outra instância do `func start`; encerrar com `Ctrl+C`.
+- **`Compare-Object` lista diferenças entre os registros do smoke:** abrir os dois arquivos, localizar o cenário (`### nome`) e classificar como defeito (corrigir) ou diferença inerente (documentar em `architecture.md`).

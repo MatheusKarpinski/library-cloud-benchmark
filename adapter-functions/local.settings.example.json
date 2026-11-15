@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "java",
+    "DB_URL": "jdbc:postgresql://localhost:5432/library",
+    "DB_USER": "library",
+    "DB_PASSWORD": "troque-esta-senha-local",
+    "DB_POOL_MAX": "5",
+    "DB_POOL_MIN_IDLE": "1",
+    "DB_CONNECTION_TIMEOUT_MS": "5000"
+  }
+}

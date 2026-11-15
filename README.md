@@ -15,8 +15,9 @@ e em **Azure Functions** (Flex Consumption), e submetida aos mesmos testes de ca
 | 1 | Planejamento | Concluída |
 | 2 | Ambiente + núcleo (`core`) | **Testada** (35 testes) |
 | 3 | PostgreSQL local, JDBC, API Spring Boot | **Testada** (validação manual em 02/11/2026) |
-| 4 | Testes de integração (PostgreSQL real e API por HTTP) | **Escrita — validar (seção "Etapa 4")** |
-| 5–11 | Functions, Docker, k6, monitoramento, Azure, experimentos, documentação final | Não iniciadas |
+| 4 | Testes de integração (PostgreSQL real e API por HTTP) | **Testada** (57 unitários e 85 com integração passaram; informado pelo autor em 12/11/2026) |
+| 5 | API no Azure Functions (execução local) e comparação com o container | **Testada** localmente em 14/11/2026 (smoke idêntico, salvo o `Content-Type` do 204; ver seção "Etapa 5") |
+| 6–11 | Imagem Docker, k6, monitoramento, Azure, experimentos, documentação final | Não iniciadas |
 
 Documentação completa e atualizada a cada etapa em [`docs/`](docs/README.md).
 
@@ -29,14 +30,15 @@ library-cloud-benchmark/
 ├── api-contract/           DTOs e tradução exceção -> HTTP (Java puro)
 ├── infrastructure/         JDBC + PostgreSQL + pool HikariCP
 ├── adapter-container/      API Spring Boot (Azure Container Apps)
+├── adapter-functions/      API Azure Functions (Flex Consumption) — Etapa 5
 ├── db/                     schema.sql e seed.sql (carga determinística)
-├── scripts/                load-env.ps1, db-reset.ps1
+├── scripts/                load-env.ps1, db-reset.ps1, new-local-settings.ps1, api-smoke.ps1
 ├── docker-compose.yml      PostgreSQL local
 ├── .env.example            Modelo de variáveis (copiar para .env)
 └── docs/                   Arquitetura, ADRs, metodologia, diário, openapi.yaml, notas do TCC
 ```
 
-O módulo `adapter-functions` será adicionado na Etapa 5.
+O módulo `adapter-functions` foi adicionado na Etapa 5 (validado localmente em 14/11/2026, ver a seção "Etapa 5").
 
 ## Pré-requisitos (Etapa 2)
 
@@ -48,6 +50,7 @@ O módulo `adapter-functions` será adicionado na Etapa 5.
 | VS Code + *Extension Pack for Java* | atual | Inclui Maven e execução de testes |
 
 | Docker Desktop | atual (validado: Docker 29.8.2, Compose v5.5.1) | Banco PostgreSQL local (Etapa 3) |
+| Azure Functions Core Tools | 4.x (instalada: 4.16.0) | Execução local do Functions (Etapa 5) |
 
 ### Instalação no Windows (PowerShell)
 
@@ -105,10 +108,11 @@ library-core ................ SUCCESS
 library-api-contract ........ SUCCESS
 library-infrastructure ...... SUCCESS
 library-adapter-container ... SUCCESS
+library-adapter-functions ... SUCCESS
 BUILD SUCCESS
 ```
 
-Os testes unitários somam **57** (core 35, api-contract 11, infrastructure 8, adapter-container 3). Cada módulo imprime sua linha `Tests run: N`. Os testes de integração (Etapa 4) ficam de fora deste comando.
+Os testes unitários somam **76** (core 35, api-contract 11, infrastructure 8, adapter-container 3, adapter-functions 19; eram 57 antes da Etapa 5). Cada módulo imprime sua linha `Tests run: N`. Os testes de integração (Etapa 4) ficam de fora deste comando.
 
 Linhas `INFO: Livro criado: id=...` no meio da saída são normais (logs do serviço durante os testes).
 
@@ -261,8 +265,8 @@ Qualquer erro novo deve ser registrado em `docs/troubleshooting.md`.
 Há dois níveis de teste:
 
 ```powershell
-mvn test                    # unitários: rápido, sem Docker (57 testes)
-mvn test -Pintegration      # unitários + integração: exige o Docker Desktop aberto (85 testes)
+mvn test                    # unitários: rápido, sem Docker (76 testes; eram 57 na Etapa 4)
+mvn test -Pintegration      # unitários + integração: exige o Docker Desktop aberto (104 testes; eram 85 na Etapa 4)
 ```
 
 Os testes de integração (marcados com `@Tag("integration")`) sobem um **PostgreSQL 17 em container**
@@ -282,7 +286,8 @@ core ................ Tests run: 35
 api-contract ........ Tests run: 11
 infrastructure ...... Tests run: 22
 adapter-container ... Tests run: 17
-BUILD SUCCESS   (total: 85 testes, 0 falhas)
+adapter-functions ... Tests run: 19
+BUILD SUCCESS   (total: 104 testes, 0 falhas)
 ```
 
 Observações:
@@ -290,6 +295,116 @@ Observações:
 - O Docker Desktop precisa estar aberto. Sem ele, os testes de integração falham com a mensagem `Could not find a valid Docker environment`.
 - Não é necessário parar o PostgreSQL do `docker compose` nem a API: os testes usam um banco próprio em porta aleatória e sobem a aplicação numa porta livre.
 - Um módulo isolado: `mvn -pl infrastructure -am test -Pintegration`.
+
+## Etapa 5 — API no Azure Functions (execução local)
+
+O módulo `adapter-functions` expõe as **mesmas rotas e o mesmo contrato** do adaptador de container e chama o mesmo `BookService`, o mesmo `api-contract` e a mesma `infrastructure` (ADR-020 e ADR-021). Status: **TESTADO localmente** em 14/11/2026 (resultados informados pelo autor em `docs/testing.md`). Diferença conhecida entre os adaptadores: o `Content-Type` de respostas sem corpo (204 do DELETE) — ver `docs/troubleshooting.md`, T-010.
+
+| Classe | Papel |
+|---|---|
+| `BookFunctions` | As 7 funções HTTP (`health`, `ready`, `listBooks`, `getBook` — que também atende `/api/books/search` —, `createBook`, `updateBook`, `deleteBook`); só extrai dados da requisição e converte a resposta |
+| `BookApiHandler` | Lógica HTTP sem dependência do runtime do Functions (ordem das verificações igual à do Spring) |
+| `FunctionComponents` | Monta `BookService` e pool uma vez por processo, na primeira requisição |
+| `JsonCodec`, `JacksonJsonCodec` | JSON com Jackson 3 |
+
+### 1. Testes automatizados
+
+```powershell
+mvn test                    # esperado: 76 testes (adapter-functions: 19), BUILD SUCCESS
+mvn test -Pintegration      # esperado: 104 testes; exige o Docker Desktop aberto
+```
+
+Para ver só o resumo por módulo (e registrar as contagens em `docs/testing.md`):
+
+```powershell
+mvn test | Select-String "Tests run: \d+, Failures: \d+, Errors: \d+, Skipped: \d+$|Reactor Summary|SUCCESS|FAIL|BUILD"
+```
+
+### 2. Gerar a configuração local e empacotar
+
+O Functions lê `local.settings.json` (não o `.env`). O script abaixo o cria a partir do `.env` (UTF-8 sem BOM; ignorado pelo Git; não exibe valores). **Rode antes do `package`.**
+
+```powershell
+.\scripts\new-local-settings.ps1
+mvn -pl adapter-functions -am clean package -DskipTests
+```
+
+Use `clean`: sem ele, a pasta de uma função removida do código continua em `target\azure-functions` e o `func start` falha (T-008/T-009 em `docs/troubleshooting.md`). Antes de empacotar de novo, pare o `func start` e deixe o terminal **fora** da pasta empacotada (o Windows não apaga uma pasta em uso).
+
+Esperado: `BUILD SUCCESS` e a pasta `adapter-functions\target\azure-functions\library-cloud-benchmark-fn-local` com `host.json`, `local.settings.json`, o JAR, `lib\` e uma pasta por função.
+
+```powershell
+Get-ChildItem adapter-functions\target\azure-functions\library-cloud-benchmark-fn-local
+```
+
+### 3. Iniciar o Functions local (deixe a janela aberta)
+
+```powershell
+cd adapter-functions\target\azure-functions\library-cloud-benchmark-fn-local
+func start
+```
+
+(O `cd` acima parte da raiz do projeto. Se o terminal já estiver dentro de outra pasta, volte à raiz antes.)
+
+Esperado: a lista das 7 funções com URLs do tipo `http://localhost:7071/health` e `http://localhost:7071/api/books` (sem `/api/api`). O banco local precisa estar de pé (`docker compose ps`).
+
+### 4. Conferir à mão (outro terminal, na raiz do projeto)
+
+```powershell
+Invoke-RestMethod http://localhost:7071/health
+Invoke-RestMethod http://localhost:7071/health/ready
+Invoke-RestMethod "http://localhost:7071/api/books?size=3"
+Invoke-RestMethod "http://localhost:7071/api/books/search?title=dom%20casmurro&size=2"
+```
+
+Esperado (banco com a carga de 10000 livros): os mesmos valores da tabela da Etapa 3 (`totalElements: 10000`, `totalPages: 3334`, pesquisa com 100 resultados).
+
+### 5. Comparar com o container
+
+O container e o Functions podem ficar ligados ao mesmo tempo (portas 8080 e 7071). Antes de **cada** registro, restaure o banco.
+
+```powershell
+# janela A: container (se ainda não estiver rodando)
+. .\scripts\load-env.ps1
+java -jar adapter-container\target\library-api.jar
+```
+
+```powershell
+# janela B: registros
+.\scripts\db-reset.ps1 -Rows 10000
+.\scripts\api-smoke.ps1 -BaseUrl http://localhost:8080 -OutFile smoke-container.txt
+.\scripts\db-reset.ps1 -Rows 10000
+.\scripts\api-smoke.ps1 -BaseUrl http://localhost:7071 -OutFile smoke-functions.txt
+Compare-Object (Get-Content -Encoding UTF8 smoke-container.txt) (Get-Content -Encoding UTF8 smoke-functions.txt)
+```
+
+Sem saída do `Compare-Object` = registros idênticos. Qualquer linha listada é uma diferença a analisar: registre em `docs/troubleshooting.md` (defeito) ou em `docs/architecture.md` (diferença inerente à plataforma). Os arquivos `smoke-*.txt` são evidência: guarde-os.
+
+Rota inexistente e método não permitido ficam **fora** do registro (o formato dessas respostas é do framework de cada adaptador).
+
+### Checklist da Etapa 5
+
+- [ ] `mvn test` termina com `BUILD SUCCESS` e 76 testes (adapter-functions: 19)
+- [ ] `mvn test -Pintegration` termina com `BUILD SUCCESS` e 104 testes
+- [ ] `mvn -pl adapter-functions -am package` termina com `BUILD SUCCESS` e gera a pasta `target\azure-functions\library-cloud-benchmark-fn-local`
+- [ ] A pasta tem `host.json` e `local.settings.json`
+- [ ] `func start` carrega o Java 21 e lista as 7 funções (anote a versão do Java e do Core Tools exibidas)
+- [ ] `/health`, `/health/ready`, listagem e pesquisa respondem como na tabela esperada
+- [ ] `GET /api/books/search?...` responde com a página de resultados (a pesquisa é decidida no código de `getBook`; ver T-008)
+- [ ] `api-smoke.ps1` termina nos dois endereços sem erro
+- [ ] `Compare-Object` sem saída (ou diferenças analisadas e registradas)
+- [ ] Banco parado (`docker compose stop postgres`): `/health` 200, `/health/ready` 503, dados 503 sem detalhes; após `docker compose start postgres`, volta ao normal
+
+### Problemas comuns
+
+Ver também `docs/troubleshooting.md` (seção "Problemas conhecidos").
+
+| Sintoma | Causa provável | O que fazer |
+|---|---|---|
+| Todas as rotas respondem `500 INTERNAL_ERROR` e o log cita variáveis ausentes | `local.settings.json` sem `DB_*` na pasta empacotada | `.\scripts\new-local-settings.ps1` (grava também na pasta empacotada, se ela existir) e reinicie o `func start` |
+| `func` não é reconhecido | Core Tools fora do `PATH` ou terminal antigo | Feche e reabra o terminal; `func --version` |
+| `func start` mostra 0 funções ou erro do worker Java | Versão do Java/`JAVA_HOME` | Envie a saída completa; confira `java -version` e `echo $env:JAVA_HOME` |
+| Porta 7071 em uso | Outra instância do `func start` | Encerre-a com `Ctrl+C` |
 
 ## Segurança
 

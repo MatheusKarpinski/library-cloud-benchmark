@@ -1,6 +1,6 @@
 # Implantação e custos
 
-Status: execução local do núcleo **TESTADA**; execução local da API e do banco **TESTADA** em 02/11/2026 (ver `README.md`, Etapa 3); implantação no Azure **NÃO INICIADA**.
+Status: execução local do núcleo **TESTADA**; execução local da API e do banco **TESTADA** em 02/11/2026 (ver `README.md`, Etapa 3); execução local do adaptador Functions **TESTADA** em 14/11/2026 (ver `README.md`, Etapa 5); implantação no Azure **NÃO INICIADA**.
 
 ## Regra de aprovação (definida pelo autor)
 

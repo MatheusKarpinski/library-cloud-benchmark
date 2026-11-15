@@ -77,3 +77,46 @@ Um método `isUp()` em `ReadinessResponse` fez o Jackson incluir um campo extra 
 ### Etapa 4 — alteração no código de produção
 
 `ApplicationConfig` passou a ler `DB_URL`, `DB_USER` etc. pelo `Environment` do Spring (`DatabaseConfig.from(name -> environment.getProperty(name))`) em vez de `DatabaseConfig.fromEnvironment()`. Em execução normal isso equivale a ler as variáveis de ambiente do sistema; nos testes de integração permite apontar a aplicação para o banco do container por argumentos de linha de comando, que têm prioridade sobre as variáveis do sistema. Validação, valores padrão e mensagens de erro continuam em `DatabaseConfig` (compartilhada com o futuro adaptador do Functions).
+
+
+## Etapa 5 — adaptador Azure Functions — status: TESTADO localmente (smoke de 14/11/2026)
+
+Pacote: `br.edu.tcc.librarycloud.functions`.
+
+| Arquivo | Papel |
+|---|---|
+| `adapter-functions/pom.xml` | Depende de `core`, `api-contract`, `infrastructure`, `azure-functions-java-library` 3.2.4 e Jackson 3 (versão do BOM); plugin `azure-functions-maven-plugin` 1.40.0 com o objetivo `package` |
+| `adapter-functions/host.json` | `extensions.http.routePrefix` vazio: as rotas ficam `/api/books` e `/health`, como no container |
+| `adapter-functions/local.settings.example.json` | Modelo das configurações locais (`FUNCTIONS_WORKER_RUNTIME=java` e `DB_*`); o arquivo real (`local.settings.json`) é criado por `scripts/new-local-settings.ps1` e não é versionado |
+| `BookFunctions` | 7 funções HTTP anônimas (a pesquisa é atendida por `getBook`, ver abaixo); converte `ApiResult` na resposta do runtime (status obtido por busca no enum `HttpStatus` pelo código) |
+| `BookApiHandler` | Todos os casos de uso HTTP, sem dependência do runtime; recebe `BookService`, `JsonCodec` e um `BooleanSupplier` do banco |
+| `ApiResult` | Status, corpo (texto JSON ou `null`) e cabeçalhos extras |
+| `FunctionComponents` | Criação única e preguiçosa (por processo) de `BookService`, pool e verificador de saúde, com `DatabaseConfig.fromEnvironment()`; falha de criação não é guardada |
+| `JsonCodec`, `JacksonJsonCodec`, `JsonCodecException` | JSON com Jackson 3; `FAIL_ON_UNKNOWN_PROPERTIES` desligado |
+
+### Rotas
+
+| Função | Método e rota |
+|---|---|
+| `health` | `GET /health` |
+| `ready` | `GET /health/ready` |
+| `listBooks` | `GET /api/books` |
+| `createBook` | `POST /api/books` |
+| `getBook` | `GET /api/books/{id}`; quando `{id}` é exatamente `search`, executa a pesquisa por título (`GET /api/books/search?title=`) |
+| `updateBook` / `deleteBook` | `PUT` / `DELETE /api/books/{id}` |
+
+### Comportamentos para conhecer
+
+- **Ordem das verificações** (igual à do adaptador Spring): o corpo JSON é lido antes de qualquer regra do serviço (corpo ausente, em branco, `null`, `[]`, malformado ou com tipo incorreto => 400 `MALFORMED_REQUEST`, também no PUT de id inexistente); em listagem e pesquisa, `page` e depois `size` são convertidos (erro => 400 `VALIDATION_ERROR` com o nome do **primeiro** parâmetro inválido), depois `PageRequest`, depois o serviço.
+- **`page` ou `size` vazios** (`?page=&size=`) usam o padrão.
+- **Falha ao montar os objetos** (por exemplo, `DB_*` ausente): resposta `500 INTERNAL_ERROR` genérica; o detalhe vai para o log da função. A próxima requisição tenta montar de novo.
+- **Cabeçalhos:** `Content-Type: application/json` em respostas com corpo; `Location` na criação; resposta 204 sem corpo.
+- **Segurança:** acesso anônimo apenas para a execução local; a proteção do endpoint será tratada na Etapa 9.
+
+### Limitações conhecidas (Etapa 5)
+
+- Validado só na execução local (Core Tools); a implantação no Azure (Flex Consumption) não foi feita.
+- Respostas sem corpo (204) levam `Content-Type: text/plain` no Functions e nenhum no container (T-010).
+- O pool de conexões não é fechado explicitamente no Functions.
+- O `JsonMapper` do Functions é montado à parte do mapper do Spring Boot; diferenças de configuração só aparecem comparando respostas (`api-smoke.ps1`).
+- A conversão de `page` e `size` usa `Integer.parseInt`; o conversor do Spring é próprio e pode aceitar formatos incomuns de forma diferente.

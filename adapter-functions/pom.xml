@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>br.edu.tcc.librarycloud</groupId>
+        <artifactId>library-cloud-benchmark</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>library-adapter-functions</artifactId>
+    <name>library-adapter-functions (Azure Functions)</name>
+    <description>Adaptador HTTP para a implantação serverless (Azure Functions, plano Flex Consumption). Usa o mesmo núcleo, o mesmo contrato e a mesma infraestrutura do adaptador de container.</description>
+
+    <properties>
+        <!-- Versões fora do BOM do Spring Boot. Fontes e data de conferência: docs/tcc-notes.md (itens C12 a C14). -->
+        <azure-functions-java-library.version>3.2.4</azure-functions-java-library.version>
+        <azure-functions-maven-plugin.version>1.40.0</azure-functions-maven-plugin.version>
+        <!-- Nome da pasta gerada em target/azure-functions/. O nome do recurso no Azure será definido na Etapa 9. -->
+        <functions.appName>library-cloud-benchmark-fn-local</functions.appName>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>br.edu.tcc.librarycloud</groupId>
+            <artifactId>library-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>br.edu.tcc.librarycloud</groupId>
+            <artifactId>library-api-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>br.edu.tcc.librarycloud</groupId>
+            <artifactId>library-infrastructure</artifactId>
+        </dependency>
+
+        <!-- Anotações e tipos HTTP do Azure Functions. -->
+        <dependency>
+            <groupId>com.microsoft.azure.functions</groupId>
+            <artifactId>azure-functions-java-library</artifactId>
+            <version>${azure-functions-java-library.version}</version>
+        </dependency>
+
+        <!-- Jackson 3 (mesma linha usada pelo Spring Boot 4); versão gerenciada pelo BOM do POM pai (ADR-021). -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <!-- Monta a pasta executável do Functions em target/azure-functions/<appName>/ (host.json,
+                 function.json de cada função, JAR e dependências em lib/). Não publica nada no Azure. -->
+            <plugin>
+                <groupId>com.microsoft.azure</groupId>
+                <artifactId>azure-functions-maven-plugin</artifactId>
+                <version>${azure-functions-maven-plugin.version}</version>
+                <configuration>
+                    <appName>${functions.appName}</appName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>package-functions</id>
+                        <goals>
+                            <goal>package</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -10,12 +10,13 @@
     <packaging>pom</packaging>
     <name>library-cloud-benchmark (POM pai)</name>
 
-    <!-- O módulo adapter-functions será adicionado na Etapa 5. -->
     <modules>
         <module>core</module>
         <module>api-contract</module>
         <module>infrastructure</module>
         <module>adapter-container</module>
+        <!-- Etapa 5: adaptador Azure Functions. -->
+        <module>adapter-functions</module>
     </modules>
 
     <properties>

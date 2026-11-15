@@ -163,3 +163,54 @@ As propostas continuam aguardando aprovação do autor.
 - **Consequências:** (+) verificação automática do contrato real do repositório e da API; (−) os testes de integração levam mais tempo e exigem Docker; os testes de API comparam o JSON por trechos de texto.
 - **Impacto na comparação:** os mesmos cenários de API poderão ser reaproveitados para validar a equivalência funcional do adaptador Functions (Etapa 5).
 - **Fontes:** ver `tcc-notes.md` (itens C9 a C11).
+
+---
+## Registro de validação (Etapa 4, resultados informados pelo autor em 12/11/2026)
+
+| ADR | Situação | Evidência |
+|---|---|---|
+| ADR-019 | PROPOSTA — validada funcionalmente | `mvn test` (57 testes) e `mvn test -Pintegration` (85 testes) passaram na máquina do autor (informado; contagem por módulo e tempos não registrados) |
+| ADR-017 | PROPOSTA — parcialmente validada | O teste de consistência do `openapi.yaml` (3 testes de `OpenApiDocumentTest`) está entre os 57 unitários informados; cobre rotas, métodos e códigos de erro, **não** os esquemas dos objetos |
+
+As propostas dos ADR-014 a ADR-019 continuam aguardando aprovação explícita do autor.
+
+---
+## ADR-020 — Adaptador Azure Functions (14/11/2026) — **PROPOSTA** (escrita na Etapa 5; validada localmente em 14/11/2026)
+- **Contexto:** a segunda implantação precisa expor a MESMA API, chamando o mesmo núcleo, o mesmo contrato (`api-contract`) e a mesma persistência (`infrastructure`), sem carregar Spring.
+- **Decisão:**
+  1. Módulo `adapter-functions` com 7 funções HTTP (`health`, `ready`, `listBooks`, `getBook`, `createBook`, `updateBook`, `deleteBook`), acesso anônimo nesta etapa (execução local).
+  2. Rotas idênticas às do container: `host.json` define `extensions.http.routePrefix` vazio (o padrão do Functions seria `/api`, o que geraria `/api/api/books`). Sem *extension bundle* (somente gatilhos HTTP). **A pesquisa (`/api/books/search`) é decidida no código de `getBook`**: uma função própria com a rota literal foi tentada e, na execução local de 14/11/2026, o host entregou a requisição à função da rota `api/books/{id}` (ver `troubleshooting.md`, T-008); só o segmento exato `search` desvia para a pesquisa, como no Spring.
+  3. A lógica HTTP fica em `BookApiHandler`, **sem dependência do runtime do Functions** (recebe e devolve texto/números em `ApiResult`); `BookFunctions` apenas extrai dados da requisição e converte o resultado. Isso permite testar a lógica sem o Functions.
+  4. Ordem das verificações igual à do adaptador Spring: corpo JSON lido antes do serviço (400 `MALFORMED_REQUEST`, inclusive no PUT de id inexistente); `page` e `size` convertidos (primeiro o `page`); `PageRequest`; serviço. Corpo ausente, em branco, `null`, malformado ou com tipo incorreto vira `MALFORMED_REQUEST`. `page`/`size` vazios usam o padrão.
+  5. Objetos montados por `FunctionComponents`: criação única e preguiçosa por processo, com `DatabaseConfig.fromEnvironment()` (as *Application Settings* chegam como variáveis de ambiente). **Falha de criação não é guardada** (a próxima requisição tenta de novo). O pool não é fechado explicitamente.
+  6. Versões fora do BOM: `azure-functions-java-library` 3.2.4 e `azure-functions-maven-plugin` 1.40.0 (ver `tcc-notes.md`, C12 e C13). A pasta executável é gerada pelo objetivo `package` do plugin em `adapter-functions/target/azure-functions/library-cloud-benchmark-fn-local`.
+  7. A equivalência com o container é verificada por `scripts/api-smoke.ps1` (registro normalizado das respostas) e comparação dos dois registros.
+- **Justificativa:** manter o adaptador fino e reutilizar o máximo de código compartilhado reduz a diferença entre as implantações às que são inerentes à plataforma.
+- **Alternativas:** Spring Cloud Function (traria o Spring para dentro do Functions, contrariando a motivação dos ADR-004 e ADR-005 de não medir peso de framework do lado serverless); lógica HTTP dentro das próprias funções (não testável sem o runtime); biblioteca 3.3.0 (publicada em 29/04/2026; **não avaliada**).
+- **Consequências (diferenças esperadas; a do `Content-Type` do 204 foi observada em 14/11/2026, as demais não foram exercitadas):**
+  - rota inexistente e método não permitido seguem o formato do runtime do Functions, não o do Spring;
+  - exceção inesperada responde `500 INTERNAL_ERROR` (formato da aplicação) no Functions, enquanto no Spring cai no tratamento padrão do framework;
+  - conversão numérica de `page`/`size` feita com `Integer.parseInt` após `strip()`; o conversor do Spring é próprio e pode aceitar formatos diferentes em casos incomuns (não coberto pelo smoke);
+  - o pool de conexões não é fechado no Functions;
+  - respostas sem corpo (204): o Functions envia `Content-Type: text/plain` e o container não envia `Content-Type` (observado, T-010);
+  - cabeçalhos HTTP adicionais podem diferir; o registro do smoke compara só `Content-Type` (sem `charset`) e `Location`.
+- **Impacto na comparação:** **ameaça à validade** (host do Functions + worker Java versus Spring/Tomcat); equivalência funcional só vale após a comparação dos registros do smoke sem diferenças inesperadas.
+- **Fontes:** https://learn.microsoft.com/azure/azure-functions/functions-reference-java · https://mvnrepository.com/artifact/com.microsoft.azure.functions/azure-functions-java-library · https://mvnrepository.com/artifact/com.microsoft.azure/azure-functions-maven-plugin (acessos em 14/11/2026).
+
+## ADR-021 — Serialização JSON no adaptador Functions (14/11/2026) — **PROPOSTA** (escrita na Etapa 5; validada localmente em 14/11/2026; detalha o ADR-015)
+- **Contexto:** o ADR-015 deixou a serialização JSON a cargo de cada adaptador; o Spring Boot 4 usa Jackson 3 configurado por ele.
+- **Decisão:** no Functions, Jackson 3 (`tools.jackson.core:jackson-databind`, versão gerenciada pelo BOM do POM pai) por meio da interface `JsonCodec`/`JacksonJsonCodec`, com `FAIL_ON_UNKNOWN_PROPERTIES` desligado (campos desconhecidos no corpo são ignorados). A saída usa os padrões da biblioteca: JSON compacto, campos na ordem dos componentes dos registros, `null` explícito.
+- **Justificativa:** mesma linha de biblioteca do container, sem depender do conversor de POJOs do runtime do Functions; `JsonCodec` isola o handler da biblioteca.
+- **Alternativas:** binding de POJO do runtime (não avaliado); outra biblioteca JSON (diferenças de formato entre adaptadores); JSON escrito à mão (risco de erro).
+- **Consequências:** (+) mesmos registros e mesmos nomes de campo; (−) a configuração do `JsonMapper` do Spring Boot não é reutilizada: o mapper do Functions é montado à parte, e diferenças de configuração só aparecem comparando as respostas (smoke). Os 5 testes de `JacksonJsonCodecTest` fixam o formato esperado.
+- **Impacto na comparação:** nenhum direto, desde que os registros do smoke sejam idênticos.
+
+---
+## Registro de validação (Etapa 5, resultados informados pelo autor em 14/11/2026)
+
+| ADR | Situação | Evidência |
+|---|---|---|
+| ADR-020 | PROPOSTA — validada funcionalmente (local) | `func start` com Core Tools 4.16.0 e JDK 21.0.9; `api-smoke.ps1` com 42 cenários: registros iguais no container e no Functions, salvo o `Content-Type` do 204 (T-010); a pesquisa precisou ser decidida no código (T-008) |
+| ADR-021 | PROPOSTA — validada funcionalmente (local) | JSON dos cenários do smoke igual ao do container (corpos de sucesso e de erro) |
+
+Os ADR-014 a ADR-021 continuam aguardando aprovação explícita do autor.
