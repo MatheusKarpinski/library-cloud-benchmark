@@ -5,7 +5,7 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 ## T-001 — Script `.ps1` bloqueado
 - **Sintoma:** `a execução de scripts foi desabilitada neste sistema` ao rodar `.\scripts\db-reset.ps1`.
 - **Causa:** política de execução do PowerShell (padrão restritivo no Windows).
-- **Solução:** `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` (vale só para a janela atual; repetir em janelas novas).
+- **Solução:** `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` (vale só para a janela atual; repetir em janelas novas). Voltou a ocorrer ao reabrir os terminais na Etapa 6 (15/11/2026). Voltou a ocorrer ao reabrir o terminal na Etapa 7 (20/11/2026).
 - **Etapa 3, 02/11/2026.**
 
 ## T-002 — Campo extra `"up": true` em `/health/ready`
@@ -63,6 +63,32 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 - **Confirmação:** com o script ajustado, os dois registros foram repetidos em 14/11/2026 (42 cenários cada) e o `Compare-Object` **não listou nenhuma linha**. (A contagem de linhas da primeira saída colada não fechava com os 3 cenários; foi tratada como perda na colagem.)
 - **Etapa 5, 14/11/2026** (saídas informadas pelo autor).
 
+## T-011 — `docker image inspect` da imagem base falha com "No such image"
+- **Sintoma:** `Error response from daemon: No such image: eclipse-temurin:21-jre-noble` ao tentar obter o digest da base, no passo de inspeção da imagem.
+- **Causa:** o `docker build` baixa a imagem base para o cache do construtor e não a deixa salva como imagem local com nome; `docker image inspect` só enxerga imagens locais. Foi um erro do roteiro da documentação, não da imagem construída.
+- **Solução:** consultar o digest no registro: `docker buildx imagetools inspect eclipse-temurin:21-jre-noble | Select-String "^Digest:"`. O valor reflete a tag no momento da consulta; se a tag mudar entre o build e a consulta, pode diferir do usado no build. README e `testing.md` foram corrigidos.
+- **Etapa 6, 15/11/2026** (saída informada pelo autor).
+
+## T-012 — Dica "What's next / Gordon" do Docker Desktop após comando com código de saída diferente de zero
+- **Sintoma:** mensagem "What's next: Debug this container error with Gordon" depois de parar a API (`docker stop`) e depois de `docker run ... sh -c "ls -la /app; env | grep -c DB_"`.
+- **Causa (provável):** o Docker Desktop mostra a dica quando o contêiner termina com código de saída diferente de zero. Nesses dois casos, a JVM encerrada por `SIGTERM` costuma sair com 143 (não verificado aqui) e o `grep -c` sem correspondências retorna 1. Não houve falha da aplicação: o log mostra o *graceful shutdown* completo.
+- **Solução:** nenhuma; ignorar a dica nesses casos.
+- **Etapa 6, 15/11/2026** (saídas informadas pelo autor).
+
+## T-013 — Resumo do k6 com 163 requisições (em vez de 150) e `n/d` por endpoint
+- **Sintoma:** no smoke de leitura (`20261120-180243`), o resumo mostrou 163 requisições para 151 iterações (a leitura faz uma requisição por iteração) e `n/d` na coluna de requisições de cada endpoint. Falhas, checks, limites e latências estavam coerentes.
+- **Causa:** `TREND_STATS` (em `k6/lib/common.js`) não incluía `count`, então a contagem das métricas de latência não estava disponível no `handleSummary`. O resumo usou o total de `http_reqs`, que inclui as 12 requisições do `setup` (2 de verificação e 10 páginas de ids). A causa foi identificada pela leitura do código; a confirmação veio da nova execução.
+- **Solução:** `count` incluído em `TREND_STATS`.
+- **Confirmação:** nova execução (`20261120-181002`): 150 requisições para 150 iterações e contagens por endpoint (78, 44 e 28) somando 150.
+- **Etapa 7, 20/11/2026** (saídas informadas pelo autor). Observação: a documentação do k6 sobre `summaryTrendStats` não foi consultada (ver `tcc-notes.md`, C29).
+
+## T-014 — Execução abortada no `setup` gravava um `.summary.json` com zeros
+- **Sintoma:** com o alvo parado, o teste terminou com a mensagem "API indisponivel" e código 107, mas gravou `results\...-read-container-smoke.summary.json` com requisições 0, `falhas: 0.00%`, `iteracoes: n/d` e "nenhum limite violado".
+- **Causa:** o k6 chama o `handleSummary` mesmo quando o `setup` lança exceção; o script gravava o arquivo sem verificar se alguma iteração foi executada. Um arquivo assim poderia ser confundido com uma medição válida.
+- **Solução:** `summaryOutputs` não grava arquivo quando não há iterações e imprime "nenhuma iteracao executada"; o `run-k6.ps1` informa "Arquivo de resumo nao encontrado". O arquivo gerado na primeira tentativa foi removido pelo autor.
+- **Confirmação:** nova execução com o alvo parado (`20261120-183431`): código 107, nenhuma linha nova em `results\`; e um smoke normal na imagem (`20261120-183505`) gerou o arquivo como antes.
+- **Etapa 7, 20/11/2026** (saídas informadas pelo autor).
+
 ## Problemas conhecidos (preventivo, ainda sem ocorrência)
 
 - **`Could not find a valid Docker environment` ao rodar `mvn test -Pintegration`:** o Docker Desktop não está aberto ou o motor ainda não iniciou. Abrir o Docker Desktop, aguardar "Engine running" e repetir. Se aparecer `client version ... is too old`, a versão do Testcontainers não corresponde ao Docker instalado; conferir a versão gerenciada pelo BOM com `mvn dependency:tree`.
@@ -78,7 +104,7 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 - **Porta 7071 em uso:** outra instância do `func start`; encerrar com `Ctrl+C`.
 - **`Compare-Object` lista diferenças entre os registros do smoke:** abrir os dois arquivos, localizar o cenário (`### nome`) e classificar como defeito (corrigir) ou diferença inerente (documentar em `architecture.md`).
 
-### Etapa 6 (imagem Docker) — preventivo, sem ocorrência
+### Etapa 6 (imagem Docker) — preventivo (os itens abaixo não ocorreram; as ocorrências reais são T-011 e T-012)
 
 - **`docker build` falha ao baixar dependências do Maven:** rede instável; repetir o comando (o cache preserva o que já foi baixado). Se persistir, registrar a mensagem completa.
 - **`docker build` não encontra a imagem `maven:3.9-eclipse-temurin-21` ou `eclipse-temurin:21-jre-noble`:** a tag pode ter mudado; registrar a mensagem e ajustar o `Dockerfile` (e o ADR-022).
@@ -88,3 +114,17 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 - **`container name "/library-api-local" is already in use`:** `docker rm -f library-api-local`.
 - **`port is already allocated` (8081):** usar `-Port` com outro valor.
 - **`docker stop` demora cerca de 10 s e encerra à força:** a JVM pode não ter tratado o `SIGTERM`; registrar o tempo e as últimas linhas do log.
+
+### Etapa 7 (k6) — preventivo (os itens abaixo não ocorreram; as ocorrências reais são T-013 e T-014)
+
+- **`k6` não é reconhecido após o `winget install`:** o VS Code mantém o `PATH` antigo; fechar e reabrir o VS Code por completo (não só o terminal).
+- **"API indisponivel em ..." no início do teste:** o alvo do `-Target` não está rodando; subir o JAR, o `func start` ou a imagem.
+- **"O banco esta vazio":** restaurar a carga com `.\scripts\db-reset.ps1 -Rows 10000` ou usar `-ResetDb`.
+- **Falhas `409` no teste de escrita:** ISBN de uma execução interrompida ainda no banco; usar `-ResetDb`.
+- **Diferença diferente de zero no log do `teardown`:** algum DELETE falhou; restaurar o banco antes do próximo teste.
+- **Código de saída 99:** limite violado (não é erro de script); ver o resumo.
+- **`descartadas` maior que zero ou aviso de VUs insuficientes:** a API ou o gerador não acompanhou a taxa; aumentar `-MaxVus` ou reduzir `-Rate`, e registrar o fato como resultado.
+- **Arquivo `.summary.json` não gravado:** o diretório `results` não existe (execução direta do k6 sem o `run-k6.ps1`), a execução não teve nenhuma iteração (ex.: API parada; ver T-014) ou o resumo falhou; ver as mensagens do k6 ao final.
+- **Campos `n/d` no resumo do terminal:** a estrutura do objeto do `handleSummary` mudou na versão do k6 ou falta uma estatística em `TREND_STATS` (ver T-013); o arquivo `.summary.json` guarda o objeto completo em `data` (anexar o arquivo ao relato).
+- **O log da API na imagem mostra a porta 8080, mas o teste usa 8081:** a 8080 é a porta dentro do contêiner; o `run-image.ps1` a publica como 8081 no Windows (dúvida do autor, sem falha).
+- **Linhas do resumo ausentes no terminal (`alvo=...`, latência geral):** observado em algumas saídas coladas, causa não determinada; usar o `.summary.json`, que guarda os valores.

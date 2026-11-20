@@ -65,11 +65,25 @@ Revisar as fontes diretamente antes de citar; as páginas da Microsoft mudam com
 | C18 | A imagem oficial `eclipse-temurin` publica a tag `21-jre-noble` (JRE 21 sobre Ubuntu 24.04), para linux/amd64, com cerca de 95 MB comprimidos na listagem consultada (patch 21.0.10_7 na captura) | [DOC secundária] captura da listagem de tags do Docker Hub | https://hub.docker.com/_/eclipse-temurin/tags — **reconferir antes de citar** (tamanho e patch mudam) |
 | C19 | A documentação das imagens oficiais lista variantes JRE do Java 21 (`alpine`, `jammy`, `ubi9-minimal` em captura antiga, sem `noble`); as listas mudam com o tempo, por isso a tag e o *digest* efetivos devem ser registrados após cada build | [DOC secundária] | https://github.com/docker-library/docs/blob/master/eclipse-temurin/README.md |
 | C20 | Comportamento padrão da JVM sob limite de memória de contêiner (`MaxRAMPercentage`) e efeito de `-XX:MaxRAMPercentage=75.0` | **NÃO CONSULTADO** | Reconferir na documentação do JDK antes de citar; a validação local (Etapa 6, passo 7) mostra o `MaxHeapSize` efetivo |
-| C21 | A imagem `maven:3.9-eclipse-temurin-21` para o estágio de build | [NÃO VERIFICADO] a tag aparece em exemplos públicos de Dockerfile Java (ex.: https://oneuptime.com/blog/post/2026-02-08-how-to-speed-up-docker-build-for-javamaven-projects/view); o `docker build` do autor a confirma | — |
+| C21 | A imagem `maven:3.9-eclipse-temurin-21` para o estágio de build | [NÃO VERIFICADO] a tag aparece em exemplos públicos de Dockerfile Java (ex.: https://oneuptime.com/blog/post/2026-02-08-how-to-speed-up-docker-build-for-javamaven-projects/view); o `docker build` do autor a confirmou em 15/11/2026 | — |
+
+## C6. Testes de carga com k6 (Etapa 7; acessos em 15/11/2026)
+
+| # | Afirmação | Tipo | Fonte |
+|---|---|---|---|
+| C22 | O k6 está na linha 2.x: a v2.0.0 foi publicada em 11/05/2026 e a v2.3.0 era a versão estável mais recente em 28/09/2026 | [DOC secundária] | https://qaskills.sh/blog/k6-2-migration-guide-breaking-changes e https://github.com/grafana/k6/releases — **reconferir com `k6 version` na máquina usada** |
+| C23 | A v2.0 removeu, entre outros, `--no-summary`, `--summary-mode=legacy` e o executor `externally-controlled`; o projeto usa os executores `constant-arrival-rate` e `ramping-arrival-rate` e `handleSummary`, não afetados pelas remoções listadas | [DOC] | https://grafana.com/docs/k6/latest/release-notes/v2.0.0.md |
+| C24 | Instalação no Windows: `winget install k6 --source winget` ou instalador MSI oficial (`https://dl.k6.io/msi/k6-latest-amd64.msi`); a documentação também oferece imagem Docker `grafana/k6` | [DOC] | https://grafana.com/docs/k6/latest/set-up/install-k6.md |
+| C25 | `handleSummary(data)` recebe o objeto com as métricas agregadas e pode gravar arquivos; os exemplos da documentação acessam valores como `data.metrics.<nome>.values.<estatística>`; a opção `summaryTrendStats` altera as estatísticas disponíveis | [DOC] | https://grafana.com/docs/k6/latest/results-output/end-of-test/custom-summary/ — **a estrutura exata na versão instalada deve ser conferida no arquivo `.summary.json` gravado** |
+| C26 | Limites (*thresholds*) violados fazem o k6 terminar com código de saída 99 | [DOC secundária] | https://www.issoh.co.jp/md/tech/7581 — **reconferir na documentação oficial de thresholds (não consultada)** |
+| C27 | Justificativa do modelo aberto (taxa de chegada) em relação ao modelo fechado (usuários virtuais fixos) | **NÃO CONSULTADO** | Citar a documentação do k6 sobre modelos de carga antes de usar a justificativa no texto do TCC |
+| C28 | Versão do k6 instalada com `winget` em 20/11/2026: v2.4.0 (commit dd9395906d, go1.26.11, windows/amd64); a v2.4.0 é mais recente que a v2.3.0 citada em C22 | Observado na execução (autor) | Saída de `winget install k6` e de `k6 version`, informadas pelo autor em 20/11/2026 |
+| C29 | A contagem (`count`) das métricas de latência só estava no objeto do `handleSummary` depois de incluir `count` em `summaryTrendStats`; sem ela, o resumo contou 163 requisições em vez de 150 | Observado na execução (autor) | Execuções `20261120-180243` e `20261120-181002`; a documentação de `summaryTrendStats` **NÃO CONSULTADA**: conferir antes de citar |
+| C30 | No k6 v2.4.0, exceção no `setup` terminou a execução com código de saída 107 e o `handleSummary` foi chamado mesmo assim, com métricas vazias | Observado na execução (autor) | Execução `20261120-183138`; documentação **NÃO CONSULTADA**. O código 99 (C26) não foi exercitado |
 
 ## D. Decisões de projeto (não são recomendações da literatura)
 
-Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID gerado na aplicação; serviço único; paginação padrão 20/máx. 100; módulo `api-contract`; PostgreSQL 17; pool 5/1; OpenAPI manual; 503 para falha de persistência; testes de integração por etiqueta e perfil Maven; adaptador Functions com lógica HTTP sem dependência do runtime e rotas sem prefixo (ADR-020); Jackson 3 no Functions (ADR-021); imagem Docker multi-estágio com JRE Temurin 21 e `MaxRAMPercentage=75` (ADR-022). Ver ADRs.
+Java 21; Maven multi-módulo; JDBC puro; Spring Boot 4.1.1 no container; UUID gerado na aplicação; serviço único; paginação padrão 20/máx. 100; módulo `api-contract`; PostgreSQL 17; pool 5/1; OpenAPI manual; 503 para falha de persistência; testes de integração por etiqueta e perfil Maven; adaptador Functions com lógica HTTP sem dependência do runtime e rotas sem prefixo (ADR-020); Jackson 3 no Functions (ADR-021); imagem Docker multi-estágio com JRE Temurin 21 e `MaxRAMPercentage=75` (ADR-022); scripts de carga k6 com modelo de taxa de chegada e configuração por variáveis de ambiente (ADR-023). Ver ADRs.
 
 ## E. Hipóteses a testar (sem comprovação ainda)
 
@@ -85,6 +99,12 @@ Nenhuma medição de **desempenho** até o momento.
 - O Azure Functions local (Core Tools 4.16.0, runtime 4.1054.250.26428, JDK Oracle 21.0.9, Windows) executou a API Java 21 com Jackson 3.
 - Em 42 cenários, as respostas do container e do Functions foram iguais em status e corpo; única diferença observada: `Content-Type` do 204 (`text/plain` no Functions; ausente no container), tratada como diferença inerente (T-010). Registros repetidos com o script ajustado: idênticos.
 - O host do Functions entregou `GET /api/books/search` à função de `api/books/{id}`; a escolha passou ao código (T-008).
+
+**Observações funcionais (Etapa 6, 15/11/2026, informado pelo autor)** — [MEDIDO como observação funcional, não de desempenho]:
+- A imagem construída usa Temurin 21.0.13+9 (a listagem de tags consultada em C18 mostrava o patch 21.0.10; a tag é flutuante) e ocupa 444 MB em disco (120 MB de conteúdo no Docker Desktop).
+- Respostas do contêiner iguais às do JAR nos 42 cenários do smoke.
+- Início da aplicação em 1,3 s e 1,6 s (duas execuções, uma por registro; sem controle de carga) e `docker stop` em 0,5 s com *graceful shutdown*. Não são medições de desempenho: a metodologia exige repetições e controle de variáveis (Etapa 10).
+- Digest da base `eclipse-temurin:21-jre-noble` consultado em 15/11/2026: `sha256:0d57a8e90c2bb844c5a8e1b2b71e11eff06dad7edcfd803cd21ed4ae203b2515`.
 
 **Testes automatizados (Etapa 4, informado pelo autor em 12/11/2026)** — `mvn test` (57 testes) e `mvn test -Pintegration` (85 testes) passaram; contagem por módulo observada em 14/11/2026 (core 35, api-contract 11, infrastructure 22, adapter-container 17; soma 85); tempos não registrados. Com a Etapa 5: 104 testes (adapter-functions 19), 0 falhas, 0 erros, 0 ignorados.
 

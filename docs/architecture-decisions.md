@@ -216,7 +216,7 @@ As propostas dos ADR-014 a ADR-019 continuam aguardando aprovação explícita d
 Os ADR-014 a ADR-021 continuam aguardando aprovação explícita do autor.
 
 ---
-## ADR-022 — Imagem Docker da API em container (15/11/2026) — **PROPOSTA** (escrita na Etapa 6; validação pendente)
+## ADR-022 — Imagem Docker da API em container (15/11/2026) — **PROPOSTA** (escrita na Etapa 6; validada localmente em 15/11/2026)
 - **Contexto:** o Azure Container Apps executa uma imagem de contêiner; a imagem precisa ser reproduzível, pequena o bastante e sem segredos, e não pode introduzir variáveis desnecessárias na comparação com o Functions.
 - **Decisão:**
   1. `Dockerfile` multi-estágio na raiz. Estágio de build: `maven:3.9-eclipse-temurin-21`, com `mvn -pl adapter-container -am package -Dmaven.test.skip=true` (só `core`, `api-contract`, `infrastructure` e `adapter-container`; os testes foram executados nas Etapas 4 e 5).
@@ -230,3 +230,31 @@ Os ADR-014 a ADR-021 continuam aguardando aprovação explícita do autor.
 - **Consequências:** (+) imagem reproduzível a partir do código-fonte; (−) o build exige rede; a tag `21-jre-noble` é flutuante (o resumo/*digest* da base e a versão do Java devem ser registrados após cada build); o tamanho da imagem pode influenciar o tempo de início de novas réplicas (a avaliar na Etapa 10).
 - **Impacto na comparação:** **variáveis de controle** (versão do JRE da imagem, `MaxRAMPercentage`, CPU e memória); o Functions usa o runtime gerenciado pela plataforma, então a comparação de memória/CPU entre os modelos precisa registrar essas diferenças.
 - **Fontes:** `tcc-notes.md`, C18 a C21 (acessos em 15/11/2026).
+
+---
+## Registro de validação (Etapa 6, resultados informados pelo autor em 15/11/2026)
+
+| ADR | Situação | Evidência |
+|---|---|---|
+| ADR-022 | PROPOSTA — validada funcionalmente (local) | `docker build` concluído; imagem Temurin 21.0.13+9 (444 MB em disco), usuário `app`, sem variáveis `DB_*`; execução ligada ao banco do compose; smoke de 42 cenários idêntico ao do JAR; `docker stop` em 0,5 s com *graceful shutdown*. Digest da base consultado em 15/11/2026: `sha256:0d57a8e90c2bb844c5a8e1b2b71e11eff06dad7edcfd803cd21ed4ae203b2515`. O passo dos limites de recursos (`MaxHeapSize` sob 512 MiB) **não foi executado** |
+
+Os ADR-014 a ADR-022 continuam aguardando aprovação explícita do autor.
+
+---
+## ADR-023 — Scripts de carga com k6 (15/11/2026) — **PROPOSTA** (escrita na Etapa 7; scripts validados em smokes locais em 20/11/2026; aprovação pendente)
+- **Contexto:** a comparação entre as implantações exige cargas de leitura e de escrita iguais, repetíveis, parametrizáveis e com resultados exportados para análise (ADR-013: k6 + Azure Monitor primeiro).
+- **Decisão:**
+  1. Dois scripts separados, `k6/read.js` e `k6/write.js`, sobre módulos comuns (`k6/lib/common.js`, funções puras sem dependência do k6, e `k6/lib/api.js`).
+  2. **Toda a configuração por variáveis de ambiente** (`BASE_URL`, `TARGET`, `LEVEL`, `PROFILE`, `RATE`, `DURATION`, `MAX_VUS` e outras); o `scripts/run-k6.ps1` as define a partir de parâmetros.
+  3. **Modelo aberto (taxa de chegada):** `constant-arrival-rate` (padrão) e `ramping-arrival-rate` (degraus de 25%, 50%, 75% e 100% da taxa, com subida de 10% e patamar de 90% do tempo de cada degrau). A taxa de iterações independe do tempo de resposta, o que evita que uma resposta lenta reduza a carga oferecida.
+  4. **Leitura:** mistura configurável (padrão 50% listagem aleatória, 30% consulta por id, 20% pesquisa por título); os ids vêm de uma amostra espalhada por todo o conjunto, coletada no `setup`. **Escrita:** ciclo POST, PUT e DELETE com ISBN sintético de prefixo `979` (a carga padrão usa `978`), único por iteração e por execução; o banco volta ao tamanho original se não houver falhas.
+  5. **Níveis provisórios** (`smoke` 5/s por 30 s; `low` 20/s por 2 min; `medium` 100/s por 3 min; `high` 300/s por 3 min), válidos só para exercitar os scripts localmente; os níveis finais serão definidos na metodologia (Etapa 10). Todos sobrescrevíveis.
+  6. **Resultados:** `handleSummary` imprime um resumo curto e grava `results/<execução>.summary.json` com `meta` (parâmetros), `summary` (números principais) e `data` (objeto completo do k6); `-Raw` grava a série completa (`--out json`) em `results/raw/`.
+  7. **Limites informativos** (não interrompem o teste; o k6 sai com código 99 se violados): falhas < 1%, p95 < 1000 ms, checks > 99%, nenhuma iteração descartada.
+  8. **Etiquetas:** `target`, `level`, `test` e `profile` em todas as métricas; a fase de carga é marcada `phase:load` (o `setup` e o `teardown` ficam fora do resumo) e cada requisição tem `endpoint` (list, get, search, create, update, delete) e `name` (URL sem ids).
+- **Justificativa:** scripts separados permitem cargas de leitura e escrita independentes; a configuração externa mantém o código idêntico entre ambientes; os arquivos de resultado carregam os próprios parâmetros, o que sustenta a reprodutibilidade.
+- **Alternativas:** modelo fechado (número fixo de usuários virtuais), que reduz a carga quando o sistema fica lento; Locust, JMeter ou Gatling (mais ferramentas, mesma necessidade); exportar direto para Prometheus/Grafana (etapa posterior, conforme a decisão de começar por k6 e Azure Monitor); `abortOnFail` nos limites (impediria observar o comportamento sob saturação).
+- **Consequências:** (+) execuções comparáveis e arquivos autoexplicativos; (−) o gerador na mesma máquina da API distorce as medições (as medições finais precisam de gerador separado, a definir); a versão do k6 não é gravada no arquivo (anotar `k6 version` a cada bateria); a estrutura do objeto do `handleSummary` pode mudar entre versões do k6 (o resumo é tolerante e o objeto completo é sempre gravado).
+- **Impacto na comparação:** **ameaças à validade:** localização e capacidade do gerador de carga, latência de rede entre gerador e alvo, níveis de carga, mistura de operações e tamanho do conjunto de dados.
+- **Verificação (20/11/2026, informada pelo autor):** smokes de leitura e de escrita nos alvos `image` e `functions` sem falhas, perfil `ramp` e alvo parado verificados (detalhes em `testing.md`). Dois ajustes após a primeira execução: `count` em `TREND_STATS` (T-013) e nenhum arquivo de resumo para execução sem iterações (T-014). Não exercitados: alvo `container` (JAR), níveis `low`, `medium` e `high` e código de saída 99.
+- **Fontes:** `tcc-notes.md`, C22 a C27 (acessos em 15/11/2026).

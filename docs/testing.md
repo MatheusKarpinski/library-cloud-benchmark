@@ -9,8 +9,9 @@
 | Integração dos endpoints | Aplicação real + cliente HTTP do JDK + PostgreSQL em container | `adapter-container` | TESTADO (Etapa 4, informado pelo autor em 12/11/2026) |
 | Unitário do adaptador Functions (lógica HTTP e JSON) | JUnit 5 + AssertJ, repositório em memória **apenas de teste** | `adapter-functions/src/test` | TESTADO (Etapa 5, 14/11/2026): 19 testes, 0 falhas |
 | Equivalência entre adaptadores (container × Functions) | `scripts/api-smoke.ps1` + `Compare-Object` dos registros | raiz | TESTADO (Etapa 5, 14/11/2026): respostas iguais nos cenários, salvo o `Content-Type` do 204 (T-010) |
-| Imagem Docker da API (execução, equivalência com o JAR, encerramento) | `docker build`, `scripts/run-image.ps1`, `scripts/api-smoke.ps1` + `Compare-Object` | raiz | ESCRITO (Etapa 6); execução pendente |
-| Carga | k6 (ferramenta externa) | `load-tests/` | PLANEJADO (Etapa 7) |
+| Imagem Docker da API (execução, equivalência com o JAR, encerramento) | `docker build`, `scripts/run-image.ps1`, `scripts/api-smoke.ps1` + `Compare-Object` | raiz | TESTADO (Etapa 6, 15/11/2026): imagem idêntica ao JAR nos 42 cenários |
+| Scripts de carga (k6): execução, resultados e limpeza do banco | `scripts/run-k6.ps1` nos alvos `image` e `functions` | `k6/`, `scripts/` | TESTADO (Etapa 7, 20/11/2026): smokes de leitura e escrita, perfil `ramp` e alvo parado; ver seção "Etapa 7" |
+| Carga (medição de desempenho) | k6 (ferramenta externa) | `k6/` | PLANEJADO (Etapa 10) |
 
 ## Etapa 2 — 35 testes no `core`
 
@@ -148,14 +149,14 @@ Pendências de validação local: nenhuma. A repetição dos registros com o scr
 | Decodificação de parâmetros de consulta (`%20`) e leitura do corpo como texto | Funcionou: cenários de pesquisa e de POST/PUT iguais nos dois registros |
 
 
-## Etapa 6 — imagem Docker da API (ESCRITO; execução pendente)
+## Etapa 6 — imagem Docker da API (TESTADO localmente; resultados informados pelo autor em 15/11/2026)
 
 ### Verificações previstas
 
 | # | Verificação | Como | Resultado esperado |
 |---|---|---|---|
 | 1 | Construção da imagem | `docker build -t library-api:local .` | Termina sem erro |
-| 2 | Conteúdo da imagem | `docker images`; `docker run --rm --entrypoint java library-api:local -version`; `... --entrypoint id ...`; `docker image inspect eclipse-temurin:21-jre-noble ...` | Tamanho anotado; Java 21 Temurin; `uid=10001(app)`; *digest* da base anotado |
+| 2 | Conteúdo da imagem | `docker images`; `docker run --rm --entrypoint java library-api:local -version`; `... --entrypoint id ...`; `docker buildx imagetools inspect eclipse-temurin:21-jre-noble | Select-String "^Digest:"` | Tamanho anotado; Java 21 Temurin; `uid=10001(app)`; *digest* da base anotado |
 | 3 | Execução ligada ao banco | `.\scripts\run-image.ps1` | `Started LibraryApplication`, `Tomcat started on port 8080`, `Picked up JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0` |
 | 4 | Endpoints básicos | `/health`, `/health/ready`, listagem na porta 8081 | Mesmos valores da Etapa 3 (`totalElements` 10000, `totalPages` 3334) |
 | 5 | Equivalência com o JAR | `api-smoke.ps1` na porta 8081 e `Compare-Object` com `smoke-container.txt` | Sem saída (42 cenários) |
@@ -166,6 +167,66 @@ Pendências de validação local: nenhuma. A repetição dos registros com o scr
 
 | Execução | Onde | Resultado |
 |---|---|---|
-| Verificações 1 a 7 | Máquina do autor | **PENDENTE** |
+| 1. `docker build -t library-api:local .` | Máquina do autor, Docker Desktop | Concluído; imagem `library-api:local` (ID `3d9f362ee5f0`) |
+| 2. Conteúdo da imagem | Máquina do autor | 444 MB em disco e 120 MB de conteúdo (colunas do Docker Desktop); `java -version`: OpenJDK 21.0.13 (2026-10-20 LTS), Temurin-21.0.13+9; `id`: `uid=10001(app) gid=10001(app)`; `/app` contém só `library-api.jar` (21593322 bytes, dono `app`); nenhuma variável `DB_*` no ambiente da imagem (contagem 0); digest da base `eclipse-temurin:21-jre-noble` consultado depois do build: `sha256:0d57a8e90c2bb844c5a8e1b2b71e11eff06dad7edcfd803cd21ed4ae203b2515` (a tag é flutuante; o digest pode diferir do usado no build se a tag mudou entre os dois momentos) |
+| 3. Execução ligada ao banco | Máquina do autor | Logs: Spring Boot v4.1.1, Tomcat 11.0.24, Java 21.0.13, PID 1 executado por `app`; `Picked up JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0`; HikariCP `Start completed` sem conexão na criação; `Tomcat started on port 8080`; `Started LibraryApplication in 1.317 seconds` (1ª execução) e `1.621 seconds` (2ª). Valores de uma execução cada, em máquina sem controle de carga: **não são medição de desempenho** |
+| 4. Endpoints básicos (porta 8081) | Máquina do autor | Saída manual não anexada; coberto pelos cenários 1 a 3 do smoke (saúde, readiness, listagem), idênticos aos do JAR |
+| 5. Equivalência com o JAR | Máquina do autor | `smoke-image.txt` com 255 linhas e 42 cenários, como `smoke-container.txt`; `Compare-Object` **sem saída** |
+| 6. Encerramento | Máquina do autor | `docker stop`: 0,4996669 s (`Measure-Command`); logs: `Commencing graceful shutdown`, `Graceful shutdown complete` e encerramento do pool, em poucos milissegundos |
+| 7. Limites de recursos (opcional) | — | **Não executado** |
 
 Não coberto nesta etapa: desempenho e consumo de recursos sob carga (Etapas 7 e 10), execução com a imagem no Azure (Etapa 9) e varredura de vulnerabilidades da imagem.
+
+
+## Etapa 7 — scripts de carga com k6 (TESTADO localmente em smokes, 20/11/2026)
+
+**Escopo:** validar que os scripts funcionam e produzem os arquivos esperados. As execuções locais **não** são medição de desempenho (gerador e API na mesma máquina, níveis provisórios).
+
+### Verificações
+
+| # | Verificação | Como | Resultado esperado |
+|---|---|---|---|
+| 1 | k6 instalado | `k6 version` | Versão 2.x anotada |
+| 2 | Leitura `smoke`, alvo `image` | `run-k6.ps1 -Target image -Test read -Level smoke` | 150 iterações e 150 requisições na fase de carga (o k6 pode iniciar ±1); falhas 0%; checks 100%; 0 descartadas; arquivo em `results\` |
+| 3 | Escrita `smoke`, alvo `image` | `run-k6.ps1 -Target image -Test write -Level smoke -ResetDb` | 150 iterações e 450 requisições; falhas 0%; log do `teardown` com diferença 0; `totalElements` 10000 depois |
+| 4 | Mesmos testes, alvo `functions` | `run-k6.ps1 -Target functions ...` | Mesmos resultados |
+| 5 | Perfil em degraus | `run-k6.ps1 -Target image -Test read -Level smoke -Profile ramp` | Cerca de 100 iterações (±10), sem erro; arquivo `...-ramp.summary.json` |
+| 6 | Alvo parado | Parar a API e rodar `run-k6.ps1 -Target container -Test read` | Falha imediata com "API indisponivel" e código de saída diferente de zero |
+| 7 | Conteúdo do arquivo | `(Get-Content <arquivo> -Raw \| ConvertFrom-Json).summary` | Campos `requests`, `failedRate`, `latencyMs`, `byEndpoint` preenchidos (sem `null` nos principais) |
+| 8 | (opcional) Nível `low`, leitura | `run-k6.ps1 -Target image -Test read -Level low` | 2400 iterações, falhas 0% |
+
+### Resultados observados (Etapa 7)
+
+Todas as saídas foram informadas pelo autor em 20/11/2026 (k6 v2.4.0, commit dd9395906d, go1.26.11, windows/amd64; gerador e API na mesma máquina; PostgreSQL do compose).
+
+| # | Execução (identificador) | Resultado |
+|---|---|---|
+| 1 | `k6 version` | v2.4.0 (instalado com `winget install k6 --source winget`) |
+| 2a | Leitura `smoke`, `image` (`20261120-180243`) | 151 iterações, 0% de falhas, checks 100%, 0 descartadas, código 0. **Resumo com contagem errada:** 163 requisições (incluía as 12 do `setup`) e `n/d` por endpoint (T-013); corrigido |
+| 2b | Leitura `smoke`, `image` (`20261120-181002`, após a correção) | 150 iterações e 150 requisições (list 78, get 44, search 28), 0% de falhas, checks 100%, 0 descartadas, código 0 |
+| 2c | Leitura `smoke`, `image` (`20261120-183505`, após a segunda correção) | 150 iterações e 150 requisições (list 73, get 42, search 35), 0% de falhas, checks 100%, arquivo gerado normalmente |
+| 3 | Escrita `smoke`, `image`, `-ResetDb` (`20261120-181331`) | 151 iterações e 453 requisições (create, update e delete: 151 cada), 0% de falhas, checks 100%, 0 descartadas, código 0; "Livros antes: 10000 \| depois: 10000 \| diferença: 0"; `totalElements` 10000 |
+| 4a | Leitura `smoke`, `functions` (`20261120-182215`) | 151 iterações e 151 requisições (list 82, get 42, search 27), 0% de falhas, checks 100%, 0 descartadas |
+| 4b | Escrita `smoke`, `functions`, `-ResetDb` (`20261120-182303`) | 151 iterações e 453 requisições (151 de cada operação), 0% de falhas, checks 100%, 0 descartadas; diferença 0; `totalElements` 10000 depois |
+| 5 | Leitura `smoke`, `image`, `-Profile ramp` (`20261120-181653`) | 102 iterações e 102 requisições (list 50, get 32, search 20), 0% de falhas, 0 descartadas, código 0; arquivo `...-read-image-smoke-ramp.summary.json`; cenário de 8 etapas e 32 s (cada degrau de 7,5 s é arredondado para 8 s) |
+| 6a | Alvo parado, `container`, porta 8080 (`20261120-183138`, antes da correção) | Mensagem "API indisponivel em http://localhost:8080", código de saída **107**; **gravou** um `.summary.json` com zeros e "nenhum limite violado" (T-014); arquivo removido pelo autor |
+| 6b | Alvo parado (`20261120-183431`, após a correção) | Mesma mensagem e código 107; "nenhuma iteracao executada"; **nenhum** arquivo gravado |
+| 7 | Conteúdo do `.summary.json` (leitura `image`, `20261120-181002`) | `requests`, `failedRate`, `latencyMs`, `byEndpoint` e `thresholdsViolated` preenchidos (sem `null` nos principais); `thresholdsViolated` vazio |
+| 8 | Nível `low` | **Não executado** |
+
+Observações:
+
+- A iteração a mais (151 em vez de 150) apareceu em 4 de 6 execuções de 30 s (nas outras 2 foram 150) e não houve descartadas: o k6 pode iniciar uma iteração a mais no executor de taxa constante.
+- Em algumas saídas coladas do terminal faltaram a linha `alvo=...` e a linha de latência geral do resumo (causa não determinada); o `.summary.json` guardou os valores de latência.
+- A API na imagem escuta a porta 8080 dentro do contêiner e é publicada no Windows como 8081 (`run-image.ps1`); o k6 usa 8081 no alvo `image`.
+- As latências dos smokes **não** são medição de desempenho (carga leve, gerador e API na mesma máquina) e não comparam container e Functions.
+- O código de saída dos testes no alvo `functions` não foi colado; a mensagem final do script ("k6 terminou sem violar limites") só é impressa com código 0.
+
+### Riscos da Etapa 7 (situação em 20/11/2026)
+
+- Estrutura do objeto do `handleSummary` no k6 2.4.0: funcionou; os campos foram preenchidos no arquivo. A contagem das métricas de latência só apareceu após incluir `count` em `TREND_STATS` (T-013).
+- Limites com etiquetas (`http_req_duration{phase:load}`): a contagem da fase de carga passou a excluir as requisições do `setup` (150 de 150 iterações, contra 163 antes). O disparo de um limite violado (código 99) **não foi exercitado**.
+- Variáveis de ambiente do PowerShell 5.1 e criação do arquivo em `results\`: funcionaram (taxa, duração e nível apareceram no cenário do k6 e os arquivos foram criados).
+- Ids da amostra do `setup` e ISBNs sintéticos sob concorrência: sem `409` nem falha de PUT ou DELETE nos smokes (até 5 VUs). Níveis mais altos não foram executados.
+
+Não coberto: desempenho, escalabilidade, cold start e custo (Etapa 10), gerador de carga separado da máquina da API e monitoramento (Etapa 8).

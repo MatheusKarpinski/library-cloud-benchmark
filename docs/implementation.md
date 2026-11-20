@@ -122,7 +122,7 @@ Pacote: `br.edu.tcc.librarycloud.functions`.
 - A conversão de `page` e `size` usa `Integer.parseInt`; o conversor do Spring é próprio e pode aceitar formatos incomuns de forma diferente.
 
 
-## Etapa 6 — imagem Docker da API em container — status: ESCRITO (execução pendente)
+## Etapa 6 — imagem Docker da API em container — status: TESTADO localmente (15/11/2026)
 
 | Arquivo | Papel |
 |---|---|
@@ -136,10 +136,38 @@ Pacote: `br.edu.tcc.librarycloud.functions`.
 - O módulo `adapter-functions` precisa estar presente no contexto (o POM pai o lista como módulo), mas **não** é compilado na imagem.
 - `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75.0` faz a JVM imprimir `Picked up JAVA_TOOL_OPTIONS` ao iniciar (comportamento esperado do JDK).
 - A tag da base (`21-jre-noble`) é flutuante: registrar o *digest* e a versão do Java após cada build.
-- O processo Java é o PID 1 do contêiner; o encerramento gracioso depende de a JVM receber o `SIGTERM` do `docker stop` (a confirmar).
+- O processo Java é o PID 1 do contêiner e recebe o `SIGTERM` do `docker stop`: o encerramento gracioso foi observado (0,5 s, log do Spring).
 
 ### Limitações conhecidas (Etapa 6)
 
-- Escrito sem execução: ver as verificações em `testing.md`.
+- Validada só localmente (Docker Desktop); a execução no Azure Container Apps não foi feita.
+- Os limites de memória e CPU (passo opcional) ainda não foram exercitados.
 - Sem `HEALTHCHECK` na imagem; as sondas serão configuradas no Container Apps (Etapa 9).
 - Sem camadas de JAR, `jlink` ou imagem mínima: otimizações só depois de medir.
+
+
+## Etapa 7 — scripts de carga com k6 — status: TESTADO (smokes locais, 20/11/2026)
+
+| Arquivo | Papel |
+|---|---|
+| `k6/read.js` | `setup`: verifica `GET /health/ready` e a listagem, e coleta uma amostra de ids espalhada por todo o conjunto (páginas igualmente espaçadas de 100 itens, até `ID_SAMPLE_PAGES`). Cada iteração escolhe uma operação pelos pesos (`MIX_*`): listagem de página aleatória, consulta de id da amostra ou pesquisa por um dos termos fixos |
+| `k6/write.js` | `setup`: verifica a API e guarda o total de livros. Cada iteração: POST (ISBN `979` + semente da execução + contador da iteração), PUT (marca `disponivel` falso) e DELETE; o DELETE é feito mesmo que o PUT falhe. `teardown`: registra no log a diferença de livros antes e depois |
+| `k6/lib/common.js` | `resolveConfig` (valida variáveis de ambiente), `buildScenarios` (constant ou ramp), `buildThresholds`, `buildOptions`, geração de ISBN e livros, `pickOperation` e o resumo (`compactSummary`, `summaryText`, `summaryOutputs`). Sem módulos do k6 |
+| `k6/lib/api.js` | `call` (HTTP com as etiquetas `endpoint` e `name`), `field` (leitura segura de campos JSON) e `checkApi` (verificação da API antes da carga) |
+| `scripts/run-k6.ps1` | Valida a instalação do k6, define as variáveis de ambiente do processo, cria `results\`, executa `k6 run` e interpreta o código de saída |
+
+### Comportamentos para conhecer
+
+- **Fase de carga:** as métricas do resumo usam a etiqueta `phase:load`; as requisições do `setup` e do `teardown` ficam de fora.
+- **Etiquetas:** `target`, `level`, `test` e `profile` em todas as métricas; `endpoint` por operação; `name` agrupa URLs com id.
+- **Limites informativos** (não interrompem o teste): falhas < `MAX_ERROR_RATE` (1%), p95 < `P95_MS` (1000 ms), checks > 99%, `dropped_iterations` igual a 0. Violação => código de saída 99 do k6.
+- **Arquivo de resultados:** `results/<execução>.summary.json` com `meta`, `summary` e `data`; o diretório precisa existir (o `run-k6.ps1` o cria). Execução **sem nenhuma iteração** (por exemplo, `setup` que falha por API parada) não grava arquivo e termina com código 107 (T-014).
+- **Contagens:** a contagem de requisições da fase de carga e a de cada endpoint vêm da estatística `count` das métricas de latência; por isso `TREND_STATS` (em `k6/lib/common.js`) inclui `count` (T-013).
+- **ISBN:** `979` + 3 dígitos da semente (`RUN_SEED`, padrão derivado da hora) + 7 dígitos do contador; a carga padrão usa `978`.
+
+### Limitações conhecidas (Etapa 7)
+
+- Validado só em smokes locais (5 iterações/s por 30 s), nos alvos `image` e `functions`; o alvo `container` (JAR) e os níveis `low`, `medium` e `high` não foram executados. Ver `testing.md`.
+- Níveis provisórios; sem aquecimento (*warm-up*) separado, sem repetições automáticas e sem cenário de *cold start*.
+- Pesquisa com termos fixos (8 termos); a mistura de operações é configurável, mas não há distribuição de acessos não uniforme (todos os ids e páginas têm a mesma chance).
+- O arquivo de resultados não grava a versão do k6.

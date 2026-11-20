@@ -35,3 +35,5 @@ secrets/
 # Sistema operacional
 .DS_Store
 Thumbs.db
+
+results/raw/

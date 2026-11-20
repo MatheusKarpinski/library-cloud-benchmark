@@ -17,8 +17,9 @@ e em **Azure Functions** (Flex Consumption), e submetida aos mesmos testes de ca
 | 3 | PostgreSQL local, JDBC, API Spring Boot | **Testada** (validação manual em 02/11/2026) |
 | 4 | Testes de integração (PostgreSQL real e API por HTTP) | **Testada** (57 unitários e 85 com integração passaram; informado pelo autor em 12/11/2026) |
 | 5 | API no Azure Functions (execução local) e comparação com o container | **Testada** localmente em 14/11/2026 (104 testes com integração; smoke idêntico nos 42 cenários; ver seção "Etapa 5") |
-| 6 | Imagem Docker da API em container (`Dockerfile`, `.dockerignore`) e teste local da imagem | **Escrita — validar (seção "Etapa 6")** |
-| 7–11 | k6, monitoramento, Azure, experimentos, documentação final | Não iniciadas |
+| 6 | Imagem Docker da API em container (`Dockerfile`, `.dockerignore`) e teste local da imagem | **Testada** localmente em 15/11/2026 (imagem de 444 MB em disco; smoke idêntico ao do JAR; ver seção "Etapa 6") |
+| 7 | Scripts de carga com k6 (leitura e escrita), níveis configuráveis e exportação de resultados | **Testada** localmente em 20/11/2026 (smokes de leitura e escrita nos alvos `image` e `functions`, perfil `ramp` e alvo parado; k6 v2.4.0; informado pelo autor em `docs/testing.md`) |
+| 8–11 | Monitoramento, Azure, experimentos, documentação final | Não iniciadas |
 
 Documentação completa e atualizada a cada etapa em [`docs/`](docs/README.md).
 
@@ -33,7 +34,9 @@ library-cloud-benchmark/
 ├── adapter-container/      API Spring Boot (Azure Container Apps)
 ├── adapter-functions/      API Azure Functions (Flex Consumption) — Etapa 5
 ├── db/                     schema.sql e seed.sql (carga determinística)
-├── scripts/                load-env.ps1, db-reset.ps1, new-local-settings.ps1, api-smoke.ps1, run-image.ps1
+├── k6/                     Scripts de carga: read.js, write.js e lib/ — Etapa 7
+├── scripts/                load-env.ps1, db-reset.ps1, new-local-settings.ps1, api-smoke.ps1, run-image.ps1, run-k6.ps1
+├── results/                Resumos das execuções do k6 (criada pelo run-k6.ps1) — Etapa 7
 ├── Dockerfile              Imagem da API em container — Etapa 6
 ├── .dockerignore           Contexto de build sem segredos — Etapa 6
 ├── docker-compose.yml      PostgreSQL local
@@ -54,6 +57,7 @@ O módulo `adapter-functions` foi adicionado na Etapa 5 (validado localmente em 
 
 | Docker Desktop | atual (validado: Docker 29.8.2, Compose v5.5.1) | Banco PostgreSQL local (Etapa 3) |
 | Azure Functions Core Tools | 4.x (instalada: 4.16.0) | Execução local do Functions (Etapa 5) |
+| k6 | 2.x (instalada: v2.4.0, em 20/11/2026; registrar `k6 version` a cada bateria) | Testes de carga (Etapa 7) |
 
 ### Instalação no Windows (PowerShell)
 
@@ -411,7 +415,7 @@ Ver também `docs/troubleshooting.md` (seção "Problemas conhecidos").
 
 ## Etapa 6 — Imagem Docker da API em container
 
-Status: **ESCRITO** — ainda não executado; use o checklist ao final. Decisão: ADR-022 (`docs/architecture-decisions.md`).
+Status: **TESTADO localmente** em 15/11/2026 (resultados informados pelo autor em `docs/testing.md`; o passo opcional 7 não foi executado). Decisão: ADR-022 (`docs/architecture-decisions.md`).
 
 | Arquivo | Papel |
 |---|---|
@@ -435,10 +439,10 @@ Esperado: termina com `naming to docker.io/library/library-api:local`. A primeir
 docker images library-api:local
 docker run --rm --entrypoint java library-api:local -version
 docker run --rm --entrypoint id library-api:local
-docker image inspect eclipse-temurin:21-jre-noble --format "{{index .RepoDigests 0}}"
+docker buildx imagetools inspect eclipse-temurin:21-jre-noble | Select-String "^Digest:"
 ```
 
-Esperado: a imagem listada com o tamanho; Java `21.x` Temurin (a linha `Picked up JAVA_TOOL_OPTIONS` também aparece); `uid=10001(app) gid=10001(app)`; o *digest* da imagem base. **Anote** o tamanho, a versão do Java e o *digest* (a tag `21-jre-noble` muda com o tempo).
+Esperado: a imagem listada com o tamanho; Java `21.x` Temurin (a linha `Picked up JAVA_TOOL_OPTIONS` também aparece); `uid=10001(app) gid=10001(app)`; o *digest* da imagem base. **Anote** o tamanho, a versão do Java e o *digest* (a tag `21-jre-noble` muda com o tempo). O `docker build` não deixa a imagem base salva localmente; por isso o *digest* é consultado no registro com `buildx imagetools`, e não com `docker image inspect` (T-011).
 
 ### 3. Executar a imagem (segundo terminal; deixe aberto)
 
@@ -515,6 +519,96 @@ Ver também `docs/troubleshooting.md` (seção "Problemas conhecidos").
 | Erro `container name "/library-api-local" is already in use` | Execução anterior ainda existe | `docker rm -f library-api-local` |
 | `port is already allocated` (8081) | Outro programa usa a porta | `.\scripts\run-image.ps1 -Port 8082` (e use a nova porta nos comandos) |
 | A API sobe, mas `/health/ready` responde 503 | Rede ou credenciais do banco | Confira `DB_USER` e `DB_PASSWORD` no `.env` e os logs do contêiner |
+
+## Etapa 7 — Scripts de carga com k6
+
+Status: **TESTADO localmente** em 20/11/2026 (smokes; resultados informados pelo autor em `docs/testing.md`). Não executados: alvo `container` (JAR) e níveis `low`, `medium` e `high`. Decisão: ADR-023 (`docs/architecture-decisions.md`).
+
+**Escopo:** esta etapa entrega scripts prontos, configuráveis e validados. Ela **não** produz medições de desempenho utilizáveis no TCC: rodar o k6 na mesma máquina da API faz os dois disputarem CPU e memória. As medições finais (Etapa 10) exigem níveis calibrados e um gerador de carga fora da máquina da API.
+
+| Arquivo | Papel |
+|---|---|
+| `k6/read.js` | Carga de **leitura**: mistura de listagem paginada (50%), consulta por id (30%) e pesquisa por título (20%) |
+| `k6/write.js` | Carga de **escrita**: cada iteração faz POST, PUT e DELETE de um livro novo (o banco volta ao tamanho original) |
+| `k6/lib/common.js` | Configuração, cenários, limites, geração de dados e resumo (sem dependência de módulos do k6) |
+| `k6/lib/api.js` | Chamadas HTTP e verificação inicial da API |
+| `scripts/run-k6.ps1` | Executa um teste, define as variáveis de ambiente e grava `results\<execução>.summary.json` |
+
+### Instalar o k6
+
+```powershell
+winget install k6 --source winget
+```
+
+Feche e reabra o VS Code por completo (para atualizar o `PATH`) e confira:
+
+```powershell
+k6 version
+```
+
+Esperado: `k6 v2.x`. **Anote a versão** (cada execução precisa registrar a versão usada).
+
+### Executar
+
+Suba antes o alvo: `container` = JAR na porta 8080; `functions` = `func start` na 7071; `image` = `.\scripts\run-image.ps1` na 8081. O banco deve estar de pé com a carga padrão.
+
+```powershell
+.\scripts\run-k6.ps1 -Target image -Test read -Level smoke
+.\scripts\run-k6.ps1 -Target image -Test write -Level smoke -ResetDb
+```
+
+| Parâmetro | Significado |
+|---|---|
+| `-Target` | `container`, `functions` ou `image` (define a URL padrão e a etiqueta `target` nas métricas) |
+| `-Test` | `read` ou `write` |
+| `-Level` | `smoke` (padrão), `low`, `medium` ou `high` |
+| `-Profile` | `constant` (taxa fixa, padrão) ou `ramp` (degraus 25%, 50%, 75%, 100% da taxa) |
+| `-Rate`, `-Duration`, `-MaxVus` | Sobrescrevem o nível (taxa de iterações por segundo, ex.: `2m`, máximo de VUs) |
+| `-BaseUrl` | Outro endereço (ex.: Azure, nas etapas finais) |
+| `-ResetDb` | Restaura a carga padrão (10000 livros) antes de executar |
+| `-Raw` | Grava todas as medições em `results\raw\` (arquivo grande; não versionar) |
+
+Níveis **provisórios** (servem para validar os scripts na máquina local; os níveis finais serão definidos na metodologia):
+
+| Nível | Taxa (iterações/s) | Duração | Máximo de VUs |
+|---|---|---|---|
+| `smoke` | 5 | 30 s | 20 |
+| `low` | 20 | 2 min | 100 |
+| `medium` | 100 | 3 min | 300 |
+| `high` | 300 | 3 min | 1000 |
+
+**Modelo de carga:** taxa de chegada (modelo aberto): o k6 inicia a taxa pedida de iterações por segundo, independentemente do tempo de resposta. Na leitura, 1 iteração = 1 requisição; na escrita, 1 iteração = 3 requisições (POST, PUT, DELETE).
+
+Variáveis de ambiente opcionais (definidas antes de rodar, ex.: `$env:MIX_LIST = "100"`): `MIX_LIST`, `MIX_GET`, `MIX_SEARCH` (pesos da leitura, padrão 50/30/20), `P95_MS` (limite de p95, padrão 1000), `MAX_ERROR_RATE` (padrão 0.01), `PAGE_SIZE` (padrão 20), `RAMP_STEPS` (padrão `0.25,0.5,0.75,1`), `ID_SAMPLE_PAGES` (padrão 10), `PRE_VUS`, `RUN_SEED`.
+
+**Resultados:** o terminal mostra um resumo curto e `results\<aaaammdd-hhmmss>-<teste>-<alvo>-<nível>.summary.json` guarda `meta` (parâmetros da execução), `summary` (números principais) e `data` (objeto completo do k6). Os resumos são pequenos e servem de evidência; para não versionar as medições completas, execute uma vez: `Add-Content .gitignore "results/raw/"`.
+
+**Código de saída:** 0 = limites respeitados; 99 = algum limite (erro acima de 1%, p95 acima de 1000 ms, checks abaixo de 99% ou iterações descartadas) foi violado; o teste **não** é interrompido por isso. 107 = exceção no script (por exemplo, API parada no `setup`); nesse caso **nenhum** resumo é gravado.
+
+### Checklist da Etapa 7
+
+- [x] `k6 version` mostra uma versão 2.x (anotada): **v2.4.0** (commit dd9395906d, go1.26.11, windows/amd64)
+- [x] Leitura `smoke` no alvo `image`: 150 iterações, 150 requisições na fase de carga, falhas 0%, checks 100%, 0 descartadas (execução `20261120-181002`)
+- [x] Escrita `smoke` no alvo `image` com `-ResetDb`: 151 iterações e 453 requisições (o k6 pode iniciar ±1), falhas 0%; o log do `teardown` mostra diferença 0 e a listagem volta a `totalElements` 10000
+- [x] Os mesmos dois testes no alvo `functions` (leitura: 151 iterações e requisições; escrita: 151 iterações e 453 requisições; diferença 0; `totalElements` 10000)
+- [x] `-Profile ramp` (leitura, `smoke`) executa sem erro e o arquivo termina em `-ramp.summary.json` (102 iterações)
+- [x] Com a API parada, o teste falha de imediato com a mensagem "API indisponivel" (código de saída 107) e não grava resumo
+- [x] O arquivo `.summary.json` abre com `ConvertFrom-Json` e tem `meta`, `summary` e `data`
+- [ ] (opcional) Nível `low` na leitura: não executado
+
+### Problemas comuns
+
+Ver também `docs/troubleshooting.md` (seção "Problemas conhecidos").
+
+| Sintoma | Causa provável | O que fazer |
+|---|---|---|
+| `k6` não é reconhecido | Instalado, mas o VS Code ainda usa o `PATH` antigo | Feche e reabra o VS Code por completo |
+| Erro "API indisponivel em ..." | O alvo não está rodando | Suba o JAR, o `func start` ou a imagem, conforme o `-Target` |
+| Erro "O banco esta vazio" | Carga ausente | `.\scripts\db-reset.ps1 -Rows 10000` ou use `-ResetDb` |
+| Falhas `409` no teste de escrita | ISBN de uma execução interrompida ainda no banco | Use `-ResetDb` |
+| Código de saída 99 | Algum limite foi violado | Veja a seção de limites no resumo; não é erro de script |
+| Aviso de VUs insuficientes ou `descartadas` > 0 | A API (ou o gerador) não acompanha a taxa pedida | Aumente `-MaxVus` ou reduza `-Rate`; registre como resultado |
+| Mensagem "nenhuma iteracao executada" e nenhum arquivo em `results\` | O `setup` falhou (por exemplo, API parada) e o k6 saiu com código 107 | Suba o alvo e repita; execuções sem iterações não geram resumo (T-014) |
 
 ## Segurança
 

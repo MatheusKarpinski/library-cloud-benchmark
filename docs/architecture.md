@@ -75,8 +75,14 @@ A tabela vive em **um único lugar**: `ErrorMapper` (módulo `api-contract`), us
 - **Pesquisa:** o host entregou `GET /api/books/search` à função da rota `api/books/{id}` (T-008); a função `getBook` desvia o segmento exato `search` para a pesquisa.
 - **Equivalência:** verificada apenas pelos cenários do `scripts/api-smoke.ps1` (ver `testing.md`), não por construção. Única diferença observada: `Content-Type` do 204 (T-010).
 
-## Imagem Docker da API em container (Etapa 6; ESCRITA)
+## Imagem Docker da API em container (Etapa 6; TESTADA localmente)
 
 - O adaptador de container é empacotado em uma imagem multi-estágio (ADR-022): build com Maven/JDK 21, execução em JRE Temurin 21 (Ubuntu 24.04) com usuário sem privilégios.
 - Em execução local, a imagem entra na rede do `docker-compose.yml` e acessa o PostgreSQL pelo nome `postgres`; no Azure (Etapa 9), a configuração virá de variáveis de ambiente do Container Apps.
 - **Variáveis de controle da comparação:** versão do JRE da imagem, `MaxRAMPercentage`, CPU e memória do contêiner (no Functions, o runtime é gerenciado pela plataforma).
+
+## Geração de carga (Etapa 7; TESTADA localmente em smokes)
+
+- O k6 é um programa externo às duas implantações: acessa a API apenas por HTTP, com a URL em `BASE_URL`; nenhum código da aplicação muda para ser testado.
+- Os mesmos scripts (`k6/read.js` e `k6/write.js`) valem para o JAR, a imagem Docker e o Functions; as execuções ficam identificadas pela etiqueta `target`.
+- A localização do gerador de carga e a rede entre ele e o alvo são **variáveis de controle** da comparação (a definir na Etapa 10).
