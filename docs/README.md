@@ -17,11 +17,12 @@ Legenda de **tipo de afirmação** (classificação adotada neste projeto):
 | Arquivo | Conteúdo | Situação |
 |---|---|---|
 | [architecture.md](architecture.md) | Visão geral e responsabilidades | Atualizado (Etapa 7 testada) |
-| [architecture-decisions.md](architecture-decisions.md) | ADRs (até o ADR-023) | Em andamento |
+| [architecture-decisions.md](architecture-decisions.md) | ADRs (até o ADR-023; aceitos em 21/11/2026: 014, 015, 017, 018, 019 e 021) | Em andamento |
 | [implementation.md](implementation.md) | Camadas, casos de uso, arquivos | Atualizado (Etapa 7 testada) |
 | [testing.md](testing.md) | Estratégia e resultados de testes | Atualizado (Etapas 4, 5, 6 e 7 validadas localmente) |
 | [experimental-methodology.md](experimental-methodology.md) | Metodologia (plano) | PLANEJADO |
 | [deployment.md](deployment.md) | Execução local, plano de custos, implantação | Parcial |
+| [azure-resource-plan.md](azure-resource-plan.md) | Recursos e quantidades por etapa para estimar custos (sem preços) | PLANEJADO |
 | [dev-log.md](dev-log.md) | Diário de desenvolvimento | Em andamento |
 | [tcc-notes.md](tcc-notes.md) | Notas com fontes para a redação | Em andamento |
 | [troubleshooting.md](troubleshooting.md) | Problemas e soluções | 14 ocorrências registradas |

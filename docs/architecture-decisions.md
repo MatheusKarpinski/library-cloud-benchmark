@@ -102,7 +102,7 @@ Acesso às fontes online: 11/10/2026.
 
 
 ---
-## ADR-014 — Spring Boot 4.1.x e uso do BOM em todo o projeto (11/10/2026) — **PROPOSTA** (implementada na Etapa 3; detalha o ADR-005)
+## ADR-014 — Spring Boot 4.1.x e uso do BOM em todo o projeto (11/10/2026) — **ACEITA** (implementada na Etapa 3; detalha o ADR-005; aceita pelo autor em 21/11/2026)
 - **Contexto:** o ADR-005 escolheu Spring Boot; faltava escolher a versão. O OSS do Spring Boot 3.5 terminou em 30/06/2026 e o 4.0 perde OSS em dezembro de 2026 **[DOC]**; o 4.1 é a série mantida mais recente.
 - **Decisão:** Spring Boot **4.1.1** (versão mais recente encontrada na consulta), com Java 21. O BOM `spring-boot-dependencies` é importado no POM pai para **todos** os módulos, inclusive os que o Functions reutilizará; assim HikariCP e o driver PostgreSQL têm a mesma versão nas duas implantações. O JUnit continua fixado em 5.13.1 (validado na Etapa 2) porque é declarado antes do BOM.
 - **Justificativa:** versão mantida; um único catálogo de versões evita divergência entre adaptadores.
@@ -111,7 +111,7 @@ Acesso às fontes online: 11/10/2026.
 - **Impacto na comparação:** mesma versão de pool e driver nos dois lados; o framework segue como ameaça à validade (ADR-005).
 - **Fontes:** https://github.com/spring-projects/spring-boot/wiki/Supported-Versions · https://spring.io/blog/2026/08/20/spring-boot-4-1-1-available-now/ · repositório Maven Central (starter `spring-boot-starter-webmvc`).
 
-## ADR-015 — Módulo compartilhado `api-contract` (11/10/2026) — **PROPOSTA**
+## ADR-015 — Módulo compartilhado `api-contract` (11/10/2026) — **ACEITA** (aceita pelo autor em 21/11/2026)
 - **Decisão:** DTOs e a tradução exceção → HTTP ficam num módulo Java puro, usado pelos dois adaptadores.
 - **Justificativa:** evita que Spring e Functions respondam erros de forma diferente por acidente; reduz o que a Etapa 5 precisa reescrever.
 - **Alternativas:** duplicar DTOs e handlers em cada adaptador (risco de divergência).
@@ -124,13 +124,14 @@ Acesso às fontes online: 11/10/2026.
 - **Consequências:** o limite de conexões do servidor e o máximo de instâncias devem ser dimensionados juntos (ver metodologia).
 - **Fontes:** https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-supported-versions
 
-## ADR-017 — OpenAPI escrito à mão em vez de springdoc (11/10/2026) — **PROPOSTA**
+## ADR-017 — OpenAPI escrito à mão em vez de springdoc (11/10/2026) — **ACEITA** (aceita pelo autor em 21/11/2026, com a limitação registrada abaixo)
 - **Decisão:** `docs/openapi.yaml` mantido manualmente; sem springdoc/Swagger UI no adaptador.
 - **Justificativa:** o springdoc só funciona no Spring, não no Functions; carregá-lo só de um lado alteraria o peso e a inicialização do container (variável de confusão). O springdoc 3.x é a linha para Spring Boot 4, mas não foi verificado com o 4.1 **[DOC parcial]**.
 - **Alternativas:** springdoc no container (documentação gerada, porém diferente entre ambientes).
 - **Consequências:** (−) a especificação pode divergir do código — será conferida nos testes da Etapa 4.
+- **Limitação aceita (21/11/2026):** o teste de consistência cobre rotas, métodos e códigos de erro; os esquemas dos objetos do `openapi.yaml` não são conferidos pelos testes.
 
-## ADR-018 — Contrato de erros e endpoints de saúde (11/10/2026) — **PROPOSTA**
+## ADR-018 — Contrato de erros e endpoints de saúde (11/10/2026) — **ACEITA** (aceita pelo autor em 21/11/2026)
 - **Decisão:** corpo de erro `{code, message, violations[]}` sem data/pilha; `PersistenceFailureException` → 503, demais inesperadas → 500, sem expor detalhes técnicos. `/health` (liveness, sem banco) e `/health/ready` (readiness, com banco).
 - **Justificativa:** respostas determinísticas facilitam comparar os adaptadores; separar saúde sem/com banco permite medir o cold start do runtime separadamente do custo de abrir conexão (ver metodologia).
 - **Impacto na comparação:** padroniza respostas; erros de rotas inexistentes seguem o formato do framework (diferença documentada).
@@ -147,10 +148,10 @@ Acesso às fontes online: 11/10/2026.
 | ADR-018 | PROPOSTA — validada funcionalmente | 400/404/409/503 e separação `/health` × `/health/ready` observados |
 
 Correção registrada no ADR-018: classes do `api-contract` não devem ter métodos `getX()`/`isX()` extras (campo `up`, ver `troubleshooting.md` T-002).
-As propostas continuam aguardando aprovação do autor.
+Em 21/11/2026 o autor aceitou os ADR-014, ADR-015, ADR-017 e ADR-018. O ADR-016 continua proposta (aguardando aprovação do autor).
 
 ---
-## ADR-019 — Estratégia dos testes de integração (11/2026) — **PROPOSTA** (escrita na Etapa 4; refina o ADR-006)
+## ADR-019 — Estratégia dos testes de integração (11/2026) — **ACEITA** (escrita na Etapa 4; refina o ADR-006; aceita pelo autor em 21/11/2026)
 - **Contexto:** os testes da Etapa 3 foram manuais; é preciso automatizar a verificação do repositório JDBC contra um banco real e da API por HTTP, sem tornar o `mvn test` dependente de Docker.
 - **Decisão:**
   1. Testes de integração marcados com `@Tag("integration")`, excluídos por padrão e incluídos com `-Pintegration`.
@@ -172,7 +173,7 @@ As propostas continuam aguardando aprovação do autor.
 | ADR-019 | PROPOSTA — validada funcionalmente | `mvn test` (57 testes) e `mvn test -Pintegration` (85 testes) passaram na máquina do autor (informado; contagem por módulo observada em 14/11/2026: core 35, api-contract 11, infrastructure 22, adapter-container 17; tempos não registrados) |
 | ADR-017 | PROPOSTA — parcialmente validada | O teste de consistência do `openapi.yaml` (3 testes de `OpenApiDocumentTest`) está entre os 57 unitários informados; cobre rotas, métodos e códigos de erro, **não** os esquemas dos objetos |
 
-As propostas dos ADR-014 a ADR-019 continuam aguardando aprovação explícita do autor.
+Em 21/11/2026 o autor aceitou o ADR-019 (e os ADR-014, 015, 017 e 018, ver acima). O ADR-016 continua proposta.
 
 ---
 ## ADR-020 — Adaptador Azure Functions (14/11/2026) — **PROPOSTA** (escrita na Etapa 5; validada localmente em 14/11/2026)
@@ -197,7 +198,7 @@ As propostas dos ADR-014 a ADR-019 continuam aguardando aprovação explícita d
 - **Impacto na comparação:** **ameaça à validade** (host do Functions + worker Java versus Spring/Tomcat); equivalência funcional só vale após a comparação dos registros do smoke sem diferenças inesperadas.
 - **Fontes:** https://learn.microsoft.com/azure/azure-functions/functions-reference-java · https://mvnrepository.com/artifact/com.microsoft.azure.functions/azure-functions-java-library · https://mvnrepository.com/artifact/com.microsoft.azure/azure-functions-maven-plugin (acessos em 14/11/2026).
 
-## ADR-021 — Serialização JSON no adaptador Functions (14/11/2026) — **PROPOSTA** (escrita na Etapa 5; validada localmente em 14/11/2026; detalha o ADR-015)
+## ADR-021 — Serialização JSON no adaptador Functions (14/11/2026) — **ACEITA** (escrita na Etapa 5; validada localmente em 14/11/2026; detalha o ADR-015; aceita pelo autor em 21/11/2026)
 - **Contexto:** o ADR-015 deixou a serialização JSON a cargo de cada adaptador; o Spring Boot 4 usa Jackson 3 configurado por ele.
 - **Decisão:** no Functions, Jackson 3 (`tools.jackson.core:jackson-databind`, versão gerenciada pelo BOM do POM pai) por meio da interface `JsonCodec`/`JacksonJsonCodec`, com `FAIL_ON_UNKNOWN_PROPERTIES` desligado (campos desconhecidos no corpo são ignorados). A saída usa os padrões da biblioteca: JSON compacto, campos na ordem dos componentes dos registros, `null` explícito.
 - **Justificativa:** mesma linha de biblioteca do container, sem depender do conversor de POJOs do runtime do Functions; `JsonCodec` isola o handler da biblioteca.
@@ -213,7 +214,7 @@ As propostas dos ADR-014 a ADR-019 continuam aguardando aprovação explícita d
 | ADR-020 | PROPOSTA — validada funcionalmente (local) | `func start` com Core Tools 4.16.0 e JDK 21.0.9; `api-smoke.ps1` com 42 cenários: registros iguais no container e no Functions (na 1ª execução, só o `Content-Type` do 204 diferia, T-010; após o ajuste do script, `Compare-Object` sem saída); 104 testes com integração sem falhas; a pesquisa precisou ser decidida no código (T-008) |
 | ADR-021 | PROPOSTA — validada funcionalmente (local) | JSON dos cenários do smoke igual ao do container (corpos de sucesso e de erro) |
 
-Os ADR-014 a ADR-021 continuam aguardando aprovação explícita do autor.
+O ADR-021 foi aceito pelo autor em 21/11/2026. O ADR-020 continua proposta (aguardando aprovação explícita do autor).
 
 ---
 ## ADR-022 — Imagem Docker da API em container (15/11/2026) — **PROPOSTA** (escrita na Etapa 6; validada localmente em 15/11/2026)
@@ -238,7 +239,7 @@ Os ADR-014 a ADR-021 continuam aguardando aprovação explícita do autor.
 |---|---|---|
 | ADR-022 | PROPOSTA — validada funcionalmente (local) | `docker build` concluído; imagem Temurin 21.0.13+9 (444 MB em disco), usuário `app`, sem variáveis `DB_*`; execução ligada ao banco do compose; smoke de 42 cenários idêntico ao do JAR; `docker stop` em 0,5 s com *graceful shutdown*. Digest da base consultado em 15/11/2026: `sha256:0d57a8e90c2bb844c5a8e1b2b71e11eff06dad7edcfd803cd21ed4ae203b2515`. O passo dos limites de recursos (`MaxHeapSize` sob 512 MiB) **não foi executado** |
 
-Os ADR-014 a ADR-022 continuam aguardando aprovação explícita do autor.
+Continuam propostas, aguardando aprovação explícita do autor: ADR-016, ADR-020, ADR-022 e ADR-023 (o autor pretende revisá-los depois das etapas do Azure).
 
 ---
 ## ADR-023 — Scripts de carga com k6 (15/11/2026) — **PROPOSTA** (escrita na Etapa 7; scripts validados em smokes locais em 20/11/2026; aprovação pendente)
