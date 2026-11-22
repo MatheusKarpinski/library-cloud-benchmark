@@ -109,3 +109,36 @@ métricas de plataforma é de 90 dias [DOC, C34]).
 - Máximos de réplicas e de instâncias, e número de repetições.
 - Gerador de carga local ou em máquina virtual.
 - Segurança do endpoint anônimo do Functions e do ingresso externo do Container Apps (antes de publicar).
+
+## 6. Estimativas feitas na calculadora (21/11/2026, informadas pelo autor)
+
+**Orçamento máximo do autor:** R$ 100,00. **Janela prevista para as Etapas 8, 9 e 10:** no máximo 10 dias.
+
+### Estimativa A: janela de validação da Etapa 9 (região Brazil South)
+
+| Item | Configuração | R$ |
+|---|---|---|
+| Azure Database for PostgreSQL | Burstable B1ms, 10 horas, 32 GiB, sem alta disponibilidade | 39,47 |
+| Azure Container Registry | Basic, 7 dias, 0 GB de saída | 6,27 |
+| Storage Accounts | 5 GB, 10.000 operações de escrita e de listagem | 1,96 |
+| Azure Functions (Flex Consumption) | 2.048 MB, 892.800 execuções, 5 instâncias, 5.760 s por instância | 1,38 |
+| Azure Container Apps (Consumption) | 0,9 milhão de requisições, 1 vCPU, 2 GiB, 100 ms | 0,00 |
+| Azure Monitor | sem ingestão estimada | 0,00 |
+| **Total** | | **49,08** |
+
+Ressalvas: (1) é **estimativa**, não custo medido; (2) o valor "mensal" da calculadora é a conta do uso informado (horas, dias,
+requisições), não uma mensalidade; (3) o tempo por requisição (100 ms) e os números do Functions são hipóteses; (4) tráfego de
+saída do Azure e logs detalhados não estão incluídos; (5) o preço em reais é referência, sujeito a câmbio e IOF [DOC, C37];
+(6) **não cobre** as Etapas 8 e 10.
+
+### Estimativa B: campanha da Etapa 10 (a fazer)
+
+Pendente: horas de banco ligado por dia, camada do banco (General Purpose para carga sustentada, ver seção 3) e número de repetições.
+
+### Modelo de cobrança [DOC, C37]
+
+- Pagamento conforme o uso, mensal e em atraso; o cartão é cobrado em até 10 dias depois do fim do período de cobrança.
+- Orçamentos do Azure são avisos (limite "suave"); não interrompem os recursos. O limite de R$ 100 é do autor, não do Azure.
+- Uso que atravessa a virada do mês pode aparecer em duas cobranças (a data de fechamento deve ser conferida no portal).
+- Região: o Flex Consumption está disponível em Brazil South desde maio de 2025 [DOC secundária, C38]; confirmar na assinatura com
+  `az functionapp list-flexconsumption-locations --output table`.
