@@ -37,3 +37,5 @@ secrets/
 Thumbs.db
 
 results/raw/
+
+.env.azure
