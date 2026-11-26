@@ -19,7 +19,9 @@ e em **Azure Functions** (Flex Consumption), e submetida aos mesmos testes de ca
 | 5 | API no Azure Functions (execução local) e comparação com o container | **Testada** localmente em 14/11/2026 (104 testes com integração; smoke idêntico nos 42 cenários; ver seção "Etapa 5") |
 | 6 | Imagem Docker da API em container (`Dockerfile`, `.dockerignore`) e teste local da imagem | **Testada** localmente em 15/11/2026 (imagem de 444 MB em disco; smoke idêntico ao do JAR; ver seção "Etapa 6") |
 | 7 | Scripts de carga com k6 (leitura e escrita), níveis configuráveis e exportação de resultados | **Testada** localmente em 20/11/2026 (smokes de leitura e escrita nos alvos `image` e `functions`, perfil `ramp` e alvo parado; k6 v2.4.0; informado pelo autor em `docs/testing.md`) |
-| 8–11 | Monitoramento, Azure, experimentos, documentação final | Não iniciadas |
+| 8 | Monitoramento com Azure Monitor | Não iniciada (plano em `docs/observability.md`) |
+| 9 | Implantação no Azure: Container Apps e Functions Flex com o mesmo PostgreSQL gerenciado | **Implantada e testada** em 25/11/2026 (smoke de 42 cenários idêntico ao local nos dois; k6 smoke de leitura e escrita nos dois; ver `docs/deployment.md` e `docs/testing.md`) |
+| 10–11 | Experimentos, documentação final | Não iniciadas |
 
 Documentação completa e atualizada a cada etapa em [`docs/`](docs/README.md).
 
@@ -609,6 +611,15 @@ Ver também `docs/troubleshooting.md` (seção "Problemas conhecidos").
 | Código de saída 99 | Algum limite foi violado | Veja a seção de limites no resumo; não é erro de script |
 | Aviso de VUs insuficientes ou `descartadas` > 0 | A API (ou o gerador) não acompanha a taxa pedida | Aumente `-MaxVus` ou reduza `-Rate`; registre como resultado |
 | Mensagem "nenhuma iteracao executada" e nenhum arquivo em `results\` | O `setup` falhou (por exemplo, API parada) e o k6 saiu com código 107 | Suba o alvo e repita; execuções sem iterações não geram resumo (T-014) |
+
+## Etapa 9 — Implantação no Azure
+
+O procedimento executado (comandos, recursos, custos e plano de remoção) está em [`docs/deployment.md`](docs/deployment.md); os resultados, em `docs/testing.md`; as ocorrências, em `docs/troubleshooting.md` (T-015 a T-023).
+
+- A senha do banco e os nomes dos recursos ficam em `.env.azure`, que está no `.gitignore`. **Nunca** versionar esse arquivo.
+- Todo terminal novo precisa recarregar as variáveis de `.env.azure` antes de usar `az`.
+- Ao fim de cada sessão, parar o banco; ao fim do projeto, exportar as evidências e apagar o grupo de recursos.
+- Os endereços das APIs no Azure são públicos e sem autenticação durante o experimento: não divulgá-los.
 
 ## Segurança
 

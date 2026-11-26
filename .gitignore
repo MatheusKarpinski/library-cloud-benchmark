@@ -39,3 +39,5 @@ Thumbs.db
 results/raw/
 
 .env.azure
+
+results/azure/

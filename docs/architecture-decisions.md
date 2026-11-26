@@ -89,6 +89,7 @@ Acesso às fontes online: 11/10/2026.
 ## ADR-011 — Região do Azure — **PENDENTE**
 - **Critérios a verificar na documentação antes de decidir:** disponibilidade de Container Apps, Functions Flex Consumption e PostgreSQL gerenciado na mesma região; proximidade do cliente k6; preço; cotas da assinatura.
 - **Risco:** o local de execução do k6 (máquina local vs. máquina virtual na mesma região) altera a latência de rede medida; a escolha deve ser documentada.
+- **Situação (25/11/2026):** a Etapa 9 usou **Brazil South** por escolha do autor (a mesma da estimativa); Container Apps, Functions Flex, PostgreSQL e registro foram criados nela. A decisão formal continua pendente.
 
 ## ADR-012 — Cenários de cold start (11/10/2026) — **PROPOSTA**
 - **Decisão:** dois cenários por ambiente, "aquecido" e "frio (escala a zero)", executados só se couberem no orçamento. Detalhes em `experimental-methodology.md`.
@@ -123,6 +124,7 @@ Acesso às fontes online: 11/10/2026.
 - **Alternativas:** PostgreSQL 18; pool fixo (min = max).
 - **Consequências:** o limite de conexões do servidor e o máximo de instâncias devem ser dimensionados juntos (ver metodologia).
 - **Fontes:** https://learn.microsoft.com/azure/postgresql/flexible-server/concepts-supported-versions
+- **Verificação no Azure (24/11/2026, informada pelo autor):** servidor PostgreSQL 17.11 General Purpose D2ds_v5; collation `en_US.utf8`; `max_connections` 859 (com pool de 5 por réplica ou instância, o limite não restringe o máximo de 5 réplicas e 5 instâncias). Continua proposta (revisão pelo autor prevista).
 
 ## ADR-017 — OpenAPI escrito à mão em vez de springdoc (11/10/2026) — **ACEITA** (aceita pelo autor em 21/11/2026, com a limitação registrada abaixo)
 - **Decisão:** `docs/openapi.yaml` mantido manualmente; sem springdoc/Swagger UI no adaptador.
@@ -197,6 +199,7 @@ Em 21/11/2026 o autor aceitou o ADR-019 (e os ADR-014, 015, 017 e 018, ver acima
   - cabeçalhos HTTP adicionais podem diferir; o registro do smoke compara só `Content-Type` (sem `charset`) e `Location`.
 - **Impacto na comparação:** **ameaça à validade** (host do Functions + worker Java versus Spring/Tomcat); equivalência funcional só vale após a comparação dos registros do smoke sem diferenças inesperadas.
 - **Fontes:** https://learn.microsoft.com/azure/azure-functions/functions-reference-java · https://mvnrepository.com/artifact/com.microsoft.azure.functions/azure-functions-java-library · https://mvnrepository.com/artifact/com.microsoft.azure/azure-functions-maven-plugin (acessos em 14/11/2026).
+- **Verificação no Azure (25/11/2026, informada pelo autor):** Function App Flex Consumption (Java 21, 2.048 MB, máximo de 5 instâncias) com as 7 funções; smoke de 42 cenários idêntico ao registro local; k6 smoke de leitura e escrita sem falhas. Acesso anônimo mantido (ver segurança em `deployment.md`). Continua proposta.
 
 ## ADR-021 — Serialização JSON no adaptador Functions (14/11/2026) — **ACEITA** (escrita na Etapa 5; validada localmente em 14/11/2026; detalha o ADR-015; aceita pelo autor em 21/11/2026)
 - **Contexto:** o ADR-015 deixou a serialização JSON a cargo de cada adaptador; o Spring Boot 4 usa Jackson 3 configurado por ele.
@@ -233,6 +236,7 @@ O ADR-021 foi aceito pelo autor em 21/11/2026. O ADR-020 continua proposta (agua
 - **Fontes:** `tcc-notes.md`, C18 a C21 (acessos em 15/11/2026).
 
 ---
+- **Verificação no Azure (25/11/2026, informada pelo autor):** a imagem `library-api:v1` (digest igual ao da imagem local) roda no Container Apps com 1 vCPU e 2 GiB; smoke de 42 cenários idêntico ao registro local; k6 smoke de leitura e escrita sem falhas. O passo opcional de limites de CPU e memória da Etapa 6 não foi executado. Continua proposta.
 ## Registro de validação (Etapa 6, resultados informados pelo autor em 15/11/2026)
 
 | ADR | Situação | Evidência |

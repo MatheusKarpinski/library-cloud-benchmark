@@ -230,3 +230,31 @@ Observações:
 - Ids da amostra do `setup` e ISBNs sintéticos sob concorrência: sem `409` nem falha de PUT ou DELETE nos smokes (até 5 VUs). Níveis mais altos não foram executados.
 
 Não coberto: desempenho, escalabilidade, cold start e custo (Etapa 10), gerador de carga separado da máquina da API e monitoramento (Etapa 8).
+
+## Etapa 9 — validação funcional no Azure (TESTADO; resultados informados pelo autor em 25/11/2026)
+
+Alvos: Container App (`ca-library-api`) e Function App (`fn-library-tcc-25367`), ambos em Brazil South, com o mesmo PostgreSQL 17.11 (General Purpose D2ds_v5) carregado com 10.000 livros. Gerador (k6 e `api-smoke.ps1`) na máquina do autor, pela internet.
+
+### Resultados observados (Etapa 9)
+
+| # | Verificação | Resultado |
+|---|---|---|
+| 1 | Banco no Azure: contagem, versão, collation e conexões | 10.000 linhas; PostgreSQL 17.11; `en_US.utf8`; `max_connections` 859; servidor `Ready`, General Purpose `Standard_D2ds_v5`, alta disponibilidade desativada |
+| 2 | Imagem no registro | tag `v1` enviada; o digest termina como o da imagem local (`3d9f362ee5f0`) |
+| 3 | Container App: `/health/ready` e listagem | `status UP`, `database UP`, `totalElements` 10000 |
+| 4 | Function App: funções publicadas | 7 (`createBook`, `deleteBook`, `getBook`, `health`, `listBooks`, `ready`, `updateBook`); `/health` UP, `/health/ready` com `database UP`, `totalElements` 10000 (antes disso, publicações com zip errado carregaram 0 funções: T-018 e T-019) |
+| 5 | `api-smoke.ps1` (42 cenários) no Container App | códigos como no local; `Compare-Object` contra `smoke-image.txt`: **sem diferenças** (arquivo `smoke-azure-container.txt`) |
+| 6 | `api-smoke.ps1` (42 cenários) no Function App | códigos como no local; `Compare-Object` contra `smoke-functions.txt`: **sem diferenças** (arquivo `smoke-azure-functions.txt`) |
+| 7 | k6 leitura `smoke`, Container App (`20261125-204422`) | 151 iterações e 151 requisições (list 78, get 53, search 20), 0% de falhas, checks 100%, 0 descartadas; mediana 22,8 ms, p95 33,2 ms; execução total de 57,1 s (30 s de carga; o restante foi antes da carga, provavelmente a primeira chamada com o app em zero réplicas: **não medido de forma controlada**) |
+| 8 | k6 escrita `smoke`, Container App (`20261125-204546`) | 151 iterações e 453 requisições, 0% de falhas, 0 descartadas; mediana 20,1 ms, p95 27,1 ms, máximo 254,5 ms; livros antes 10000, depois 10000 |
+| 9 | k6 leitura `smoke`, Function App (`20261125-204719`) | 151 iterações e 151 requisições (list 69, get 55, search 27), 0% de falhas, 0 descartadas; mediana 29,3 ms, p95 53,3 ms, p99 95,3 ms; execução total de 32,4 s |
+| 10 | k6 escrita `smoke`, Function App (`20261125-204912`) | 150 iterações e 450 requisições, 0% de falhas, 0 descartadas; mediana 24,2 ms, p95 33,0 ms; livros antes 10000, depois 10000 |
+| 11 | Banco após os testes | `totalElements` 10000 nos dois endereços |
+
+Arquivos de resultados dos itens 7 a 10: `results\azure\*.summary.json`. Em todas as execuções o resumo do k6 diz "nenhum limite violado" (código de saída 0 pela mensagem do script).
+
+### Observações e limitações (Etapa 9)
+
+- Os smokes (5 iterações/s por 30 s) **não são medição de desempenho** e as latências **não comparam** container e Functions: gerador na máquina do autor, rede de internet, primeira chamada com possível cold start, uma execução de cada.
+- A diferença de uma iteração (151 e 150) é a variação do executor de taxa constante já observada na Etapa 7.
+- Não executados: níveis `low`, `medium` e `high` no Azure; `-Profile ramp` no Azure; cenário de cold start; métricas do Azure Monitor (Etapa 8).

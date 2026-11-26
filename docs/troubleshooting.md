@@ -89,6 +89,60 @@ Formato: **Sintoma** · **Causa** · **Solução** · **Etapa/data**.
 - **Confirmação:** nova execução com o alvo parado (`20261120-183431`): código 107, nenhuma linha nova em `results\`; e um smoke normal na imagem (`20261120-183505`) gerou o arquivo como antes.
 - **Etapa 7, 20/11/2026** (saídas informadas pelo autor).
 
+## T-015 — `az postgres flexible-server create` não reconhece `--high-availability`
+- **Sintoma:** `unrecognized arguments: --high-availability Disabled`; nada foi criado.
+- **Causa:** a versão do Azure CLI do autor não tem esse parâmetro (a documentação consultada o lista). A versão do CLI não foi registrada.
+- **Solução:** remover o parâmetro; o padrão é não criar alta disponibilidade. Conferir no `show` que `ha` fica `Disabled` (confirmado).
+- **Etapa 9, 24/11/2026.**
+
+## T-016 — `firewall-rule create`: servidor e regra com os parâmetros trocados
+- **Sintoma:** `the following arguments are required: --server-name/-s`.
+- **Causa:** nesta versão do CLI, `--server-name` é o servidor e `--name` é o nome da regra; não existe `--rule-name`. O primeiro comando usou `--rule-name` e o erro foi escondido por `2>$null`.
+- **Solução:** `az postgres flexible-server firewall-rule create --resource-group <grupo> --server-name <servidor> --name <regra> --start-ip-address <ip> --end-ip-address <ip>` (regra criada).
+- **Etapa 9, 24/11/2026.**
+
+## T-017 — `az functionapp show` devolve vazio nesta Function App
+- **Sintoma:** `defaultHostName` e `functionAppConfig` vieram vazios (o endereço da app ficou em branco e o teste usou `https:///health`).
+- **Causa:** não determinada. `az functionapp list` e `az rest` (ARM) mostraram os dados.
+- **Solução:** montar o endereço como `<nome>.azurewebsites.net` e usar `az functionapp list`, `az functionapp keys list` e `az rest` para consultar a app.
+- **Etapa 9, 24/11/2026.**
+
+## T-018 — Zip do Functions com barra invertida nas entradas
+- **Sintoma:** a listagem do zip mostrou `createBook\function.json` e `lib\HikariCP-...jar`; a publicação disse "Deployment was successful", mas a lista de funções ficou vazia e a API respondeu 404.
+- **Causa provável:** o zip gerado por `ZipFile.CreateFromDirectory` no PowerShell 5.1 usa `\` nos nomes; a app roda em Linux. Não foi lido log desta publicação, então a relação com o 404 **não foi confirmada**.
+- **Solução:** montar o zip com `ZipArchive`, entrada por entrada, trocando `\` por `/` (ver T-019).
+- **Etapa 9, 24/11/2026.**
+
+## T-019 — Zip com uma pasta a mais no começo: "0 functions loaded" e 404
+- **Sintoma:** com as barras corretas, a lista de funções continuou vazia; `/` respondia 200 (página padrão) e as rotas, 404.
+- **Causa (confirmada por log do Application Insights):** a mensagem "No functions were found. A valid host.json file wasn't found in the package root. However, one was located at: /n-deploy/host.json". O cálculo do caminho relativo usou o caminho curto da pasta temporária (`MATHEU~1`) contra o longo e cortou um caractere a mais: as entradas ficaram em `n-deploy/`.
+- **Solução:** calcular os caminhos relativos a partir da pasta de origem e **conferir antes de publicar** que `host.json` está na raiz, que não há `\` e que `local.settings.json` não está no zip. Resultado: 7 funções publicadas.
+- **Etapa 9, 24/11/2026.**
+
+## T-020 — `az functionapp deploy --type zip` falha com 415
+- **Sintoma:** `Status Code: 415` e a indicação de visitar o site de implantação (`scm`).
+- **Causa:** não determinada (a hipótese é que o comando não se aplica ao Flex Consumption desta forma).
+- **Solução:** usar `az functionapp deployment source config-zip` (descrito na documentação do Flex).
+- **Etapa 9, 25/11/2026.**
+
+## T-021 — Terminal novo: `az ... start` com `--resource-group` sem valor
+- **Sintoma:** `argument --resource-group/-g: expected one argument`.
+- **Causa:** as variáveis do PowerShell (`$rg`, `$server` etc.) existem só no terminal em que foram criadas.
+- **Solução:** em todo terminal novo, recarregar `.env.azure` (`Get-Content .env.azure | ForEach-Object { $k,$v = $_ -split '=',2; Set-Variable -Name $k -Value $v -Scope Global }`) antes de qualquer comando `az`.
+- **Etapa 9, 25/11/2026.**
+
+## T-022 — `Microsoft.ManagedIdentity` não registrado
+- **Sintoma:** aviso "Resource provider 'Microsoft.ManagedIdentity' used by this operation is not registered. We are registering for you."; o registro foi concluído sozinho.
+- **Causa:** o provedor não estava na lista registrada no início.
+- **Solução:** acrescentar `Microsoft.ManagedIdentity` à lista de provedores.
+- **Etapa 9, 24/11/2026.**
+
+## T-023 — Instalação da extensão `application-insights` do CLI sem terminar
+- **Sintoma:** a saída parou em "- Installing .." e o bloco de diagnóstico não chegou ao fim.
+- **Causa:** não determinada.
+- **Solução:** consultar o Application Insights sem a extensão, com `az rest` (token para `https://api.applicationinsights.io`); funcionou.
+- **Etapa 9, 25/11/2026.**
+
 ## Problemas conhecidos (preventivo, ainda sem ocorrência)
 
 - **`Could not find a valid Docker environment` ao rodar `mvn test -Pintegration`:** o Docker Desktop não está aberto ou o motor ainda não iniciou. Abrir o Docker Desktop, aguardar "Engine running" e repetir. Se aparecer `client version ... is too old`, a versão do Testcontainers não corresponde ao Docker instalado; conferir a versão gerenciada pelo BOM com `mvn dependency:tree`.

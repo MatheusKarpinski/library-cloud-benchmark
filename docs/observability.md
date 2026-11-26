@@ -34,3 +34,9 @@ Decisões de monitoramento que precisam ser tomadas **na criação** dos recurso
 - Guardar, por bateria: o `.summary.json` do k6 (`results\`), a captura ou exportação das métricas do Azure Monitor para o
   mesmo intervalo de horário e o custo real da ferramenta de custos do Azure (separado de estimativas).
 - Registrar a hora de início e fim de cada bateria para alinhar o k6 e o Azure Monitor.
+
+## Situação após a Etapa 9 (informada pelo autor, 24 e 25/11/2026)
+
+- O ambiente do Container Apps criou sozinho o espaço de trabalho do Log Analytics `workspace-rglibrarytccIhlv` (destino padrão dos logs). O Azure CLI avisou que o padrão mudará para `azure-monitor` em versão futura (2.93).
+- A Function App foi criada com o Application Insights ligado (componente com o nome do app) e `APPLICATIONINSIGHTS_CONNECTION_STRING` definida; os logs do host foram lidos por `az rest` (T-023).
+- Ainda **não** foram conferidas no portal as métricas efetivas de cada recurso (Etapa 8).

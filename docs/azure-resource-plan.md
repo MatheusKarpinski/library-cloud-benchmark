@@ -142,3 +142,18 @@ Pendente: horas de banco ligado por dia, camada do banco (General Purpose para c
 - Uso que atravessa a virada do mês pode aparecer em duas cobranças (a data de fechamento deve ser conferida no portal).
 - Região: o Flex Consumption está disponível em Brazil South desde maio de 2025 [DOC secundária, C38]; confirmar na assinatura com
   `az functionapp list-flexconsumption-locations --output table`.
+
+## 7. Recursos criados e custos observados (informados pelo autor, 25/11/2026)
+
+Os recursos criados estão em `deployment.md`. Diferenças em relação à estimativa A: o banco foi criado já em **General Purpose D2ds_v5** (decisão para não limitar os testes de carga), em vez de Burstable B1ms.
+
+| Item | Observado |
+|---|---|
+| Crédito inicial | R$ 1.075,17, com validade até 22/12/2026 |
+| Custos incorridos (captura de 25/11/2026) | R$ 4,10; créditos disponíveis R$ 1.071 |
+| Banco | R$ 2,58 (não subiu entre duas consultas com o servidor parado; os dados de custo atrasam algumas horas) |
+| Registro de contêiner | R$ 1,52 (sobe por dia; compatível com cerca de R$ 0,90 por dia da estimativa A) |
+| Conta de armazenamento | menos de R$ 0,01 |
+| Container Apps e Functions | não apareceram entre os principais recursos |
+
+A estimativa B (campanha da Etapa 10) deixou de ser necessária para o orçamento, porque o crédito cobre o uso previsto; a meta de uso de R$ 100 continua como referência do autor.
