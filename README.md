@@ -19,7 +19,7 @@ e em **Azure Functions** (Flex Consumption), e submetida aos mesmos testes de ca
 | 5 | API no Azure Functions (execução local) e comparação com o container | **Testada** localmente em 14/11/2026 (104 testes com integração; smoke idêntico nos 42 cenários; ver seção "Etapa 5") |
 | 6 | Imagem Docker da API em container (`Dockerfile`, `.dockerignore`) e teste local da imagem | **Testada** localmente em 15/11/2026 (imagem de 444 MB em disco; smoke idêntico ao do JAR; ver seção "Etapa 6") |
 | 7 | Scripts de carga com k6 (leitura e escrita), níveis configuráveis e exportação de resultados | **Testada** localmente em 20/11/2026 (smokes de leitura e escrita nos alvos `image` e `functions`, perfil `ramp` e alvo parado; k6 v2.4.0; informado pelo autor em `docs/testing.md`) |
-| 8 | Monitoramento com Azure Monitor | Não iniciada (plano em `docs/observability.md`) |
+| 8 | Monitoramento com Azure Monitor | **Testada** em 26/11/2026 (lista efetiva de métricas, escala a zero e exportação para arquivos locais; ver `docs/observability.md`) |
 | 9 | Implantação no Azure: Container Apps e Functions Flex com o mesmo PostgreSQL gerenciado | **Implantada e testada** em 25/11/2026 (smoke de 42 cenários idêntico ao local nos dois; k6 smoke de leitura e escrita nos dois; ver `docs/deployment.md` e `docs/testing.md`) |
 | 10–11 | Experimentos, documentação final | Não iniciadas |
 
