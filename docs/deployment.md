@@ -41,7 +41,7 @@ Todo terminal novo precisa recarregar as variáveis de `.env.azure` (T-021). Os 
 
 - Fim de cada sessão: `az postgres flexible-server stop --resource-group rg-library-tcc --name <servidor>` (o Azure religa o servidor sozinho depois de 7 dias, mensagem do próprio comando). Início: `... start`. Não foi verificado se o armazenamento continua cobrado com o servidor parado; os dados de custo atrasam algumas horas.
 - Fim do projeto, **depois de exportar as evidências** (métricas do Azure Monitor e `results\azure`): `az group delete --name rg-library-tcc --yes --no-wait`. Isso apaga também o banco, o registro, as duas implantações e os logs.
-- Meta do autor: terminar as Etapas 8 a 10 e exportar as evidências por volta de 10/12/2026 (a avaliação vence em 22/12/2026).
+- Prazo (informado pelo autor): a entrega do TCC-I é em 02/12/2026 (substitui a meta de 10/12). A coleta de evidências deve terminar antes disso (calendário em `experiment-plan.md`); a avaliação gratuita vence em 22/12/2026. Exportar as evidências antes de apagar o grupo de recursos.
 
 ## Segurança (situação)
 

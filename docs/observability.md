@@ -25,6 +25,20 @@ A Etapa 8 depende dos recursos da Etapa 9: as métricas só existem para recurso
 - **Application Insights e erros:** a consulta à tabela `requests` (3 dias) mostrou 200: 320, 201: 156, 204: 140, 400: 19, 404: 4 e 409: 2 (total 641, igual ao painel do portal), **todas com `success = True`**. Ou seja, para as funções que respondem normalmente com código 4xx, o Application Insights **não** conta falha (painel "Solicitações com falha" = 0). Os códigos 400, 404 e 409 batem exatamente com os cenários do smoke (19, 4 e 2); 201 e 204 não batem com a soma esperada do smoke e do k6, então essa contagem **não** é auditoria exata. Fonte oficial de contagens e de erros: o k6.
 - Painéis do portal vistos pelo autor: Container App (CPU média 0,1667%, memória média 8,1667%, tempo de resposta médio 20,50 ms, bytes de entrada e saída); Function App (solicitações do servidor 641, tempo de resposta do servidor médio 13,63 ms, 0 falhas, disponibilidade "--" por não haver teste de disponibilidade). São médias do período inteiro, sem separar o tempo ocioso: não usar como resultado.
 
+## Tempo para voltar a zero (dados de 1 minuto, UTC, informados pelo autor em 26/11/2026)
+
+| Serviço | Minutos com réplica ou instância |
+|---|---|
+| Container App | 1 réplica de 23:21 a 23:27; **0 de 23:28 a 23:41**; 1 réplica em 23:42 e 23:43; 2 réplicas de 23:44 a 23:48; 1 réplica de 23:49 a 23:53; 0 a partir de 23:54 |
+| Function App | 1 instância em 23:19 e 2 em 23:20; 1 de 23:29 a 23:35; 1 de 23:45 a 23:53 (4 desses pontos aparecem com a data 26/11 no arquivo, provável erro de rotulagem, **não verificado**); nenhuma nos demais minutos |
+
+Horários dos k6 (relógio do PC, convertidos de Brasília para UTC): Container App leitura 23:44:22 e escrita 23:45:46; Functions leitura 23:47:19 e escrita 23:49:12.
+
+- **Antes dos testes os dois estavam em zero** (Container App sem réplica de 23:28 a 23:41; Functions sem instância de 23:36 a 23:44). Uma leitura anterior, com janelas de 15 minutos, parecia mostrar uma réplica ativa antes do teste; os dados de 1 minuto mostram o contrário. Janelas de 15 minutos **não** servem para isso.
+- A primeira réplica e a primeira instância aparecem cerca de 2 minutos **antes** dos horários dos k6, nos dois serviços: indício de que o relógio do PC está adiantado cerca de 2 minutos (**a verificar**). Isso importa para alinhar o k6 com as métricas.
+- Depois do último teste de cada serviço, o Container App levou cerca de 3 a 4 minutos a mais que o Functions para chegar a zero (aproximadamente 8 a 10 minutos contra 4 a 6, conforme o desvio do relógio do PC).
+- Indício preliminar, **uma amostra de cada, não medição**: o k6 de leitura gastou cerca de 27 s antes da carga no Container App (execução de 57,1 s) e cerca de 2 s no Functions (32,4 s), ambos começando de zero. Testar de forma controlada na Etapa 10.
+
 ## O que coletar na Etapa 10
 
 | Pergunta | Container Apps | Functions (Flex) |
@@ -36,6 +50,8 @@ A Etapa 8 depende dos recursos da Etapa 9: as métricas só existem para recurso
 | Reinícios, rede, resposta | `RestartCount`, `RxBytes`, `TxBytes`, `ResponseTime` (prévia) | `OnDemandFunctionExecutionUnits` |
 
 A divisão de `Requests` por código de status e as dimensões de cada métrica **não** foram verificadas.
+
+**Banco (mesmo servidor para os dois ambientes; lista de 27/11/2026):** `cpu_percent`, `memory_percent`, `active_connections`, `max_connections` (859), `connections_failed`, `tps` e `disk_iops_consumed_percentage`. Têm a mesma definição nos dois ambientes e servem para saber se o banco virou o gargalo. A exportação dessas 6 métricas foi acrescentada ao script em 27/11/2026 e **não foi testada**.
 
 ## Exportação das métricas (TESTADA em 26/11/2026)
 

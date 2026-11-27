@@ -23,6 +23,7 @@ Legenda de **tipo de afirmação** (classificação adotada neste projeto):
 | [experimental-methodology.md](experimental-methodology.md) | Metodologia (plano) | PLANEJADO |
 | [deployment.md](deployment.md) | Implantação no Azure, custos e plano de remoção | Etapa 9 implantada e testada em smokes (25/11/2026) |
 | [azure-resource-plan.md](azure-resource-plan.md) | Recursos e quantidades por etapa para estimar custos (sem preços) | PLANEJADO |
+| [experiment-plan.md](experiment-plan.md) | Plano dos experimentos da Etapa 10 (controles, desenho, scripts, calendário) | PLANEJADO |
 | [dev-log.md](dev-log.md) | Diário de desenvolvimento | Em andamento |
 | [tcc-notes.md](tcc-notes.md) | Notas com fontes para a redação | Em andamento |
 | [troubleshooting.md](troubleshooting.md) | Problemas e soluções | 23 ocorrências registradas |

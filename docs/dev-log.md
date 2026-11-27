@@ -117,5 +117,14 @@
 - **Executado (informado pelo autor):** painéis de métricas no portal para os dois recursos; `az monitor metrics list-definitions` nos dois (31 e 9 métricas); `az monitor metrics list --metric Replicas` do Container App; consulta ao Application Insights por `az rest` (tabela `requests`). Resultados e limitações em `observability.md`.
 - **Achados:** escala a zero do Container App visível em `Replicas` (0 fora dos testes; 1 a 2 réplicas durante os testes de 25/11); o Functions tem métrica de memória; o Application Insights não conta 4xx devolvido pelo código como falha; as métricas de resposta e de status HTTP do Functions vêm do Application Insights.
 - **Exportação testada (informado pelo autor):** `scripts/export-azure-metrics.ps1 -Hours 30 -Tag teste` exportou 13 métricas (14 arquivos), sem falhas; `Replicas` máximo 2 e `InstanceCount` máximo 2. `CpuPercentage` do Functions veio sempre 0 (ver `observability.md`).
-- **Correção de registro:** a frase sobre cold start no item 7 da Etapa 9 foi retirada de `testing.md` (a causa dos 57 s não foi determinada).
+- **Correção de registro (revista duas vezes):** a frase da Etapa 9 sobre cold start foi retirada e depois reformulada: os dados de 1 minuto da métrica `Replicas` mostram o Container App em zero antes do teste, então o cold start é **provável**; o relógio do PC parece adiantado cerca de 2 minutos (a verificar). Tempos de volta a zero em `observability.md`.
 - **Pendências:** verificar dados das métricas `Jvm*`, a divisão de `Requests` por status e as métricas do banco; investigar o `CpuPercentage` do Functions; Etapa 10.
+
+## Registro de 27/11/2026 — prazo, relógio e plano da Etapa 10
+
+- **Prazo (informado pelo autor):** a entrega do TCC-I é em 02/12/2026; substitui a meta de 10/12 (ver `experiment-plan.md`).
+- **Relógio (informado pelo autor):** servidor 19:30:22 UTC contra PC 19:34:05 UTC: o PC está adiantado cerca de 3 min 43 s; confirma a suspeita de 26/11. A sincronizar antes da campanha.
+- **Métricas do banco (informado pelo autor):** lista obtida com `az monitor metrics list-definitions`; entre outras, `cpu_percent`, `memory_percent`, `active_connections`, `max_connections`, `tps`, `connections_failed` e `disk_iops_consumed_percentage`.
+- **Decisões do autor:** níveis `low`, `medium` e `high`; as coletas devem ser **justas para as duas arquiteturas**, e o PC pode ser desconsiderado se limitar ou tornar as métricas vagas. Proposta registrada: usar o PC para os dois alvos, com calibração e limitação registrada, e só então avaliar uma máquina virtual.
+- **Escrito, não testado:** `scripts/run-battery.ps1`, `scripts/cold-start.ps1` e as 6 métricas do banco em `scripts/export-azure-metrics.ps1`.
+- **Pendências:** sincronizar o relógio; testar os scripts (testes curtos); calibrar; registrar as regras de escala efetivas; decidir repetições (3 ou 2) e o gerador; executar a campanha e o cold start.

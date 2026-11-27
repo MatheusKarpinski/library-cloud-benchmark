@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-  Exporta metricas do Azure Monitor (Container App e Function App) para arquivos JSON locais.
-  Status: TESTADO em 26/11/2026 (13 metricas exportadas, sem falhas).
+  Exporta metricas do Azure Monitor (Container App, Function App e banco PostgreSQL) para arquivos JSON locais.
+  Status: TESTADO em 26/11/2026 para Container App e Function App (13 metricas); as 6 metricas do banco foram acrescentadas em 27/11/2026 e NAO foram testadas.
 
 .DESCRIPTION
   Le os nomes dos recursos em .env.azure (AZ_RG, AZ_FN), monta os identificadores dos recursos e,
@@ -43,10 +43,11 @@ $e = $endDt.ToString("yyyy-MM-ddTHH:mm:ssZ")
 
 $sub = (az account show --query id -o tsv)
 if ($LASTEXITCODE -ne 0 -or -not $sub) { Write-Host "ERRO: sem login no Azure CLI (rode az login)"; exit 1 }
-$rg = $cfg["AZ_RG"]; $fn = $cfg["AZ_FN"]
+$rg = $cfg["AZ_RG"]; $fn = $cfg["AZ_FN"]; $pg = $cfg["AZ_PG_SERVER"]
 $ids = @{
     ca = "/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.App/containerApps/ca-library-api"
     fn = "/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$fn"
+    db = "/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/$pg"
 }
 
 # alvo, metrica, agregacoes (nomes vistos em az monitor metrics list-definitions, 26/11/2026)
@@ -63,7 +64,13 @@ $lista = @(
     @("fn", "OnDemandFunctionExecutionCount", @("Total")),
     @("fn", "OnDemandFunctionExecutionUnits", @("Total")),
     @("fn", "CpuPercentage", @("Average", "Maximum")),
-    @("fn", "AverageMemoryWorkingSet", @("Average", "Maximum"))
+    @("fn", "AverageMemoryWorkingSet", @("Average", "Maximum")),
+    @("db", "cpu_percent", @("Average", "Maximum")),
+    @("db", "memory_percent", @("Average", "Maximum")),
+    @("db", "active_connections", @("Maximum")),
+    @("db", "connections_failed", @("Total")),
+    @("db", "tps", @("Average", "Maximum")),
+    @("db", "disk_iops_consumed_percentage", @("Maximum"))
 )
 
 $outFull = Join-Path $root $OutDir
