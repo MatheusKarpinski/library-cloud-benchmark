@@ -128,3 +128,16 @@
 - **Decisões do autor:** níveis `low`, `medium` e `high`; as coletas devem ser **justas para as duas arquiteturas**, e o PC pode ser desconsiderado se limitar ou tornar as métricas vagas. Proposta registrada: usar o PC para os dois alvos, com calibração e limitação registrada, e só então avaliar uma máquina virtual.
 - **Escrito, não testado:** `scripts/run-battery.ps1`, `scripts/cold-start.ps1` e as 6 métricas do banco em `scripts/export-azure-metrics.ps1`.
 - **Pendências:** sincronizar o relógio; testar os scripts (testes curtos); calibrar; registrar as regras de escala efetivas; decidir repetições (3 ou 2) e o gerador; executar a campanha e o cold start.
+
+## Registro de 27/11/2026 (noite) — testes curtos e calibração
+
+- **Executado (informado pelo autor):** relógio sincronizado; `run-battery.ps1 -DryRun` (36 execuções); teste curto da campanha; teste curto do cold start; calibração de leitura em `low` e `medium` nos dois alvos. Resultados em `experiment-plan.md`.
+- **Ajustes:** estimativa de tempo do `run-battery.ps1` (sobrecarga de 60 s para 10 s por execução, pois a real foi cerca de 1 s); pré-alocação de usuários virtuais do k6 (`taxa / 5`) após 3 e 4 iterações descartadas no `medium`; métrica `tps` do banco retirada da exportação (sem dados).
+- **Pendências:** calibrar `high` (leitura e escrita); decidir repetições (3 ou 2); campanha principal; cold start de 5 rodadas; exportar de novo as métricas cerca de 10 minutos depois da campanha (o Azure Monitor atrasa 1 a 3 minutos); parar o banco ao fim de cada sessão.
+
+## Registro de 27/11/2026 (madrugada de 28/11) — calibração do `high`
+
+- **Executado (informado pelo autor):** `run-battery.ps1 -Levels high -Tests read,write -Repetitions 1 -Tag calibracao-high`. Resultados e hipóteses em `experiment-plan.md`: 0% de falhas; 77 a 433 descartadas; cauda alta na leitura do Container App; banco com CPU máxima de 78,2%; 176 conexões ativas (esperadas cerca de 35, não explicado).
+- **Decisões do autor:** 3 repetições; campanha principal em 28/11 e cold start em 29/11.
+- **Ajuste:** pré-alocação de usuários virtuais do k6 igual à taxa (mínimo 5). **Escrito, não testado:** `scripts/consolidar-resultados.ps1`.
+- **Pendências:** conferir a série por minuto das conexões e do banco; campanha principal; cold start; consolidar; parar o banco ao fim de cada sessão.

@@ -55,8 +55,8 @@ for ($rep = 1; $rep -le $Repetitions; $rep++) {
     }
 }
 $segundos = 0
-foreach ($item in $plano) { $segundos += $duracao[$item.Nivel] + 60 + $PauseSeconds }
-Write-Host ("Plano: {0} execucoes, estimativa de {1} minutos (carga + cerca de 60 s de setup e fechamento por execucao + pausas)" -f $plano.Count, [math]::Round($segundos / 60))
+foreach ($item in $plano) { $segundos += $duracao[$item.Nivel] + 10 + $PauseSeconds }
+Write-Host ("Plano: {0} execucoes, estimativa de {1} minutos (carga + cerca de 10 s de setup e fechamento por execucao + pausas; a primeira execucao de um alvo parado pode levar cerca de 30 s a mais; some cerca de 3 min da exportacao final)" -f $plano.Count, [math]::Round($segundos / 60))
 if ($DryRun) { $plano | Format-Table -AutoSize; Write-Host "DryRun: nada foi executado."; exit 0 }
 
 $outRel = "results\azure\" + $Tag

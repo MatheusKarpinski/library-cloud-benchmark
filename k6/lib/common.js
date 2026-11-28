@@ -74,7 +74,7 @@ export function resolveConfig(env, test) {
   const duration = String(env.DURATION || base.duration);
   const durationSeconds = parseDuration(duration);
   const maxVus = intValue(env.MAX_VUS, base.maxVus, 'MAX_VUS', 1);
-  const preVus = Math.min(maxVus, intValue(env.PRE_VUS, Math.max(5, Math.ceil(rate / 10)), 'PRE_VUS', 1));
+  const preVus = Math.min(maxVus, intValue(env.PRE_VUS, Math.max(5, rate), 'PRE_VUS', 1));
 
   const rampSteps = String(env.RAMP_STEPS || '0.25,0.5,0.75,1').split(',').map((s) => Number(s.trim()));
   if (rampSteps.length < 1 || rampSteps.some((f) => !Number.isFinite(f) || f <= 0 || f > 1)) {

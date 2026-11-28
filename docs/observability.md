@@ -51,7 +51,7 @@ Horários dos k6 (relógio do PC, convertidos de Brasília para UTC): Container 
 
 A divisão de `Requests` por código de status e as dimensões de cada métrica **não** foram verificadas.
 
-**Banco (mesmo servidor para os dois ambientes; lista de 27/11/2026):** `cpu_percent`, `memory_percent`, `active_connections`, `max_connections` (859), `connections_failed`, `tps` e `disk_iops_consumed_percentage`. Têm a mesma definição nos dois ambientes e servem para saber se o banco virou o gargalo. A exportação dessas 6 métricas foi acrescentada ao script em 27/11/2026 e **não foi testada**.
+**Banco (mesmo servidor para os dois ambientes; lista de 27/11/2026):** `cpu_percent`, `memory_percent`, `active_connections`, `max_connections` (859), `connections_failed` e `disk_iops_consumed_percentage`, exportadas e **testadas** em 27/11/2026. `tps` está na lista de definições, mas veio **sem dados** (causa não determinada; talvez exija habilitar métricas avançadas do servidor, **não verificado**) e foi retirada da exportação. Têm a mesma definição nos dois ambientes e servem para saber se o banco virou o gargalo.
 
 ## Exportação das métricas (TESTADA em 26/11/2026)
 

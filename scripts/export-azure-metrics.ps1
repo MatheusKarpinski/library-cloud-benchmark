@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Exporta metricas do Azure Monitor (Container App, Function App e banco PostgreSQL) para arquivos JSON locais.
-  Status: TESTADO em 26/11/2026 para Container App e Function App (13 metricas); as 6 metricas do banco foram acrescentadas em 27/11/2026 e NAO foram testadas.
+  Status: TESTADO em 26/11/2026 para Container App e Function App (13 metricas); as metricas do banco foram acrescentadas e TESTADAS em 27/11/2026 (a metrica tps veio sem dados e foi removida).
 
 .DESCRIPTION
   Le os nomes dos recursos em .env.azure (AZ_RG, AZ_FN), monta os identificadores dos recursos e,
@@ -69,7 +69,6 @@ $lista = @(
     @("db", "memory_percent", @("Average", "Maximum")),
     @("db", "active_connections", @("Maximum")),
     @("db", "connections_failed", @("Total")),
-    @("db", "tps", @("Average", "Maximum")),
     @("db", "disk_iops_consumed_percentage", @("Maximum"))
 )
 
